@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Invaders: Mission Recall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0a0b1e;
+    --panel:#1b1836;
+    --panel-edge:#332a5e;
+    --ink:#e9e6f7;
+    --ink-dim:#9c93c2;
+    --cyan:#4ce0d2;
+    --red:#ff5470;
+    --amber:#ffd166;
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0;
+    height:100%;
+    background:var(--void);
+    color:var(--ink);
+    font-family:'VT323', monospace;
+    overflow:hidden;
+  }
+
+  #starfield{
+    position:fixed;
+    inset:0;
+    z-index:0;
+  }
+
+  /* CRT scanline + vignette overlay */
+  #crt{
+    position:fixed;
+    inset:0;
+    z-index:5;
+    pointer-events:none;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        rgba(0,0,0,0.15) 0px,
+        rgba(0,0,0,0.15) 1px,
+        transparent 2px,
+        transparent 3px
+      ),
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+    mix-blend-mode:multiply;
+  }
+
+  .stage{
+    position:relative;
+    z-index:10;
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+
+  .cabinet{
+    width:100%;
+    max-width:560px;
+    background:linear-gradient(180deg, var(--panel), #14112a);
+    border:3px solid var(--panel-edge);
+    border-radius:10px;
+    box-shadow:
+      0 0 0 6px rgba(76,224,210,0.06),
+      0 30px 60px rgba(0,0,0,0.55),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+    padding:32px 28px 28px;
+    text-align:center;
+  }
+
+  .titleRow{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    margin-bottom:6px;
+  }
+
+  #rocketIcon{
+    width:44px;
+    height:auto;
+    animation:bob 2.4s ease-in-out infinite;
+    filter:drop-shadow(0 0 6px rgba(76,224,210,0.5));
+  }
+
+  @keyframes bob{
+    0%,100%{ transform:translateY(0) rotate(-2deg); }
+    50%{ transform:translateY(-6px) rotate(2deg); }
+  }
+
+  h1{
+    font-family:'Press Start 2P', monospace;
+    font-size:clamp(18px, 5vw, 28px);
+    line-height:1.4;
+    margin:0;
+    color:var(--cyan);
+    text-shadow:
+      0 0 6px rgba(76,224,210,0.7),
+      0 0 18px rgba(76,224,210,0.35);
+    letter-spacing:1px;
+  }
+
+  .missionTag{
+    font-family:'Press Start 2P', monospace;
+    font-size:11px;
+    color:var(--amber);
+    letter-spacing:3px;
+    margin:14px 0 0;
+    text-shadow:0 0 8px rgba(255,209,102,0.5);
+  }
+
+  .tagline{
+    font-size:19px;
+    color:var(--ink-dim);
+    margin:10px 0 28px;
+    letter-spacing:0.5px;
+  }
+
+  .ufoRow{
+    display:flex;
+    justify-content:center;
+    gap:28px;
+    margin:6px 0 28px;
+  }
+
+  .ufoRow img{
+    width:46px;
+    animation:drift 3.6s ease-in-out infinite;
+  }
+  .ufoRow img:nth-child(2){ animation-delay:0.6s; }
+  .ufoRow img:nth-child(3){ animation-delay:1.2s; }
+
+  @keyframes drift{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-8px); }
+  }
+
+  fieldset{
+    border:none;
+    margin:0 0 22px;
+    padding:0;
+    text-align:left;
+  }
+
+  label{
+    display:block;
+    font-size:16px;
+    letter-spacing:1px;
+    color:var(--ink-dim);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+
+  input[type="text"]{
+    width:100%;
+    background:var(--void);
+    border:2px solid var(--panel-edge);
+    border-radius:6px;
+    color:var(--ink);
+    font-family:'VT323', monospace;
+    font-size:20px;
+    padding:10px 12px;
+    outline:none;
+    transition:border-color 0.15s, box-shadow 0.15s;
+  }
+
+  input[type="text"]:focus,
+  .uploadZone:focus-within{
+    border-color:var(--cyan);
+    box-shadow:0 0 0 3px rgba(76,224,210,0.25);
+  }
+
+  .uploadZone{
+    border:2px dashed var(--panel-edge);
+    border-radius:6px;
+    padding:18px 14px;
+    cursor:pointer;
+    transition:border-color 0.15s, background 0.15s;
+    position:relative;
+  }
+
+  .uploadZone:hover{
+    border-color:var(--cyan);
+    background:rgba(76,224,210,0.05);
+  }
+
+  .uploadZone input[type="file"]{
+    position:absolute;
+    inset:0;
+    opacity:0;
+    cursor:pointer;
+  }
+
+  .uploadZone .zoneLabel{
+    font-size:18px;
+    color:var(--ink);
+  }
+
+  .uploadZone .zoneHint{
+    font-size:15px;
+    color:var(--ink-dim);
+    margin-top:4px;
+  }
+
+  .uploadZone.hasFile{
+    border-color:var(--cyan);
+    border-style:solid;
+  }
+
+  .uploadZone.hasFile .zoneLabel{
+    color:var(--cyan);
+  }
+
+  #playBtn{
+    width:100%;
+    font-family:'Press Start 2P', monospace;
+    font-size:16px;
+    letter-spacing:1px;
+    padding:16px;
+    border-radius:8px;
+    border:none;
+    cursor:pointer;
+    background:var(--ink-dim);
+    color:var(--void);
+    opacity:0.45;
+    pointer-events:none;
+    transition:opacity 0.2s, transform 0.1s, background 0.2s, box-shadow 0.2s;
+  }
+
+  #playBtn.ready{
+    background:var(--cyan);
+    opacity:1;
+    pointer-events:auto;
+    box-shadow:0 0 20px rgba(76,224,210,0.45);
+  }
+
+  #playBtn.ready:hover{
+    transform:translateY(-2px);
+    box-shadow:0 0 28px rgba(76,224,210,0.65);
+  }
+
+  #playBtn.ready:active{
+    transform:translateY(0);
+  }
+
+  #status{
+    margin-top:14px;
+    font-size:16px;
+    min-height:20px;
+    color:var(--amber);
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    #rocketIcon, .ufoRow img{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+<div id="crt"></div>
+
+<div class="stage">
+  <div class="cabinet">
+
+    <div class="titleRow">
+      <img id="rocketIcon" alt="">
+      <h1>STUDY<br>INVADERS</h1>
+    </div>
+    <p class="missionTag">MISSION: RECALL</p>
+    <p class="tagline">Defend your grade. Shoot the right answer.</p>
+
+    <div class="ufoRow">
+      <img class="ufoGood" alt="">
+      <img class="ufoBad" alt="">
+      <img class="ufoGood" alt="">
+    </div>
+
+    <fieldset>
+      <label for="username">Callsign (your name)</label>
+      <input type="text" id="username" placeholder="e.g. Alex Tan" autocomplete="off">
+    </fieldset>
+
+    <fieldset>
+      <label>Mission notes</label>
+      <div class="uploadZone" id="uploadZone">
+        <input type="file" id="noteUpload" accept=".pdf,.txt,.png,.jpg,.jpeg">
+        <div class="zoneLabel" id="zoneLabel">Tap to upload your teacher's notes</div>
+        <div class="zoneHint">PDF, image, or text file</div>
+      </div>
+    </fieldset>
+
+    <button id="playBtn">PLAY</button>
+    <div id="status"></div>
+
+  </div>
+</div>
+
+<script>
+/* ---------- Starfield background ---------- */
+const canvas = document.getElementById('starfield');
+const ctx = canvas.getContext('2d');
+let stars = [];
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function resize(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const count = Math.floor((canvas.width * canvas.height) / 4000);
+  stars = Array.from({length: count}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    r: Math.random() * 1.4 + 0.3,
+    speed: Math.random() * 0.15 + 0.02,
+    twinklePhase: Math.random() * Math.PI * 2
+  }));
+}
+window.addEventListener('resize', resize);
+resize();
+
+let t = 0;
+function drawStars(){
+  ctx.fillStyle = '#0a0b1e';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for(const s of stars){
+    const twinkle = reducedMotion ? 1 : (Math.sin(t * 0.02 + s.twinklePhase) * 0.35 + 0.65);
+    ctx.globalAlpha = twinkle;
+    ctx.fillStyle = '#e9e6f7';
+    ctx.fillRect(s.x, s.y, s.r, s.r);
+    if(!reducedMotion){
+      s.y += s.speed;
+      if(s.y > canvas.height){ s.y = 0; s.x = Math.random() * canvas.width; }
+    }
+  }
+  ctx.globalAlpha = 1;
+  t++;
+  requestAnimationFrame(drawStars);
+}
+drawStars();
+
+/* ---------- Pixel-art sprite generator ---------- */
+// grid strings: each char maps to a palette color, '.' = transparent
+function pixelSprite(grid, palette, pixelSize = 6){
+  const rows = grid.length;
+  const cols = grid[0].length;
+  let rects = '';
+  for(let y = 0; y < rows; y++){
+    for(let x = 0; x < cols; x++){
+      const ch = grid[y][x];
+      if(ch === '.') continue;
+      const color = palette[ch];
+      rects += `<rect x="${x*pixelSize}" y="${y*pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${color}"/>`;
+    }
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" viewBox="0 0 ${cols*pixelSize} ${rows*pixelSize}">${rects}</svg>`;
+  return 'data:image/svg+xml;base64,' + btoa(svg);
+}
+
+const rocketGrid = [
+  '..111..',
+  '.11211.',
+  '.12221.',
+  '.12221.',
+  '.11211.',
+  '1111111',
+  '1333331',
+  '1113111',
+  '..131..',
+  '.14441.',
+  '..444..',
+  '...4...'
+];
+const rocketPalette = { '1':'#c9d6ff', '2':'#0a0b1e', '3':'#4ce0d2', '4':'#ffd166' };
+
+const ufoGrid = [
+  '....111....',
+  '...15551...',
+  '11111111111',
+  '16161616161',
+  '.11111111..',
+  '...11111...'
+];
+const ufoGoodPalette = { '1':'#4ce0d2', '5':'#0a0b1e', '6':'#e9e6f7' };
+const ufoBadPalette  = { '1':'#ff5470', '5':'#0a0b1e', '6':'#ffd166' };
+
+document.getElementById('rocketIcon').src = pixelSprite(rocketGrid, rocketPalette, 5);
+document.querySelectorAll('.ufoGood').forEach(el => el.src = pixelSprite(ufoGrid, ufoGoodPalette, 4));
+document.querySelectorAll('.ufoBad').forEach(el => el.src = pixelSprite(ufoGrid, ufoBadPalette, 4));
+
+/* ---------- Form logic ---------- */
+const usernameInput = document.getElementById('username');
+const uploadInput = document.getElementById('noteUpload');
+const uploadZone = document.getElementById('uploadZone');
+const zoneLabel = document.getElementById('zoneLabel');
+const playBtn = document.getElementById('playBtn');
+const status = document.getElementById('status');
+
+let uploadedFile = null;
+
+function checkReady(){
+  const ready = usernameInput.value.trim().length > 0 && uploadedFile !== null;
+  playBtn.classList.toggle('ready', ready);
+}
+
+usernameInput.addEventListener('input', checkReady);
+
+uploadInput.addEventListener('change', () => {
+  if(uploadInput.files.length > 0){
+    uploadedFile = uploadInput.files[0];
+    zoneLabel.textContent = uploadedFile.name;
+    uploadZone.classList.add('hasFile');
+  } else {
+    uploadedFile = null;
+    zoneLabel.textContent = "Tap to upload your teacher's notes";
+    uploadZone.classList.remove('hasFile');
+  }
+  checkReady();
+});
+
+playBtn.addEventListener('click', () => {
+  if(!playBtn.classList.contains('ready')) return;
+  status.textContent = `Launch sequence started for ${usernameInput.value.trim()}... (game screen coming next)`;
+  // TODO: hand off to Learn screen (AI summary/highlight generation) once built,
+  // then to the Play minigame screen. For now this is just the prototype hook point.
+});
+</script>
+
+</body>
+</html>
