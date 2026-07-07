@@ -3,264 +3,178 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Study Invaders: Mission Recall</title>
+<title>Mission Briefing — Study Invaders</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
 <style>
-  :root{
-    --void:#0a0b1e;
-    --panel:#1b1836;
-    --panel-edge:#332a5e;
-    --ink:#e9e6f7;
-    --ink-dim:#9c93c2;
-    --cyan:#4ce0d2;
-    --red:#ff5470;
-    --amber:#ffd166;
+  .topBar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .agentTag{
+    font-size:16px;
+    color:var(--ink-dim);
+    letter-spacing:0.5px;
+  }
+  .agentTag span{ color:var(--cyan); }
+
+  h2{
+    font-family:'Press Start 2P', monospace;
+    font-size:15px;
+    color:var(--cyan);
+    letter-spacing:1px;
+    margin:0 0 4px;
+    text-shadow:0 0 6px rgba(76,224,210,0.5);
+  }
+  .fileTag{
+    font-size:16px;
+    color:var(--ink-dim);
+    margin:0 0 26px;
   }
 
-  *{box-sizing:border-box;}
-
-  html,body{
-    margin:0;
-    height:100%;
-    background:var(--void);
-    color:var(--ink);
-    font-family:'VT323', monospace;
+  /* ---------- Radar loader ---------- */
+  #loadingView{
+    text-align:center;
+    padding:20px 0 8px;
+  }
+  .radar{
+    width:150px;
+    height:150px;
+    margin:0 auto 22px;
+    border-radius:50%;
+    position:relative;
+    background:
+      radial-gradient(circle, rgba(76,224,210,0.06) 0%, transparent 70%),
+      repeating-radial-gradient(circle, transparent 0, transparent 24px, rgba(76,224,210,0.12) 25px);
+    border:2px solid var(--panel-edge);
     overflow:hidden;
   }
-
-  #starfield{
-    position:fixed;
+  .radarSweep{
+    position:absolute;
     inset:0;
-    z-index:0;
+    background:conic-gradient(from 0deg, rgba(76,224,210,0.55), transparent 35%);
+    animation:spin 2.2s linear infinite;
+  }
+  .radarBlip{
+    position:absolute;
+    width:6px;
+    height:6px;
+    background:var(--amber);
+    border-radius:50%;
+    box-shadow:0 0 6px rgba(255,209,102,0.9);
+    animation:blipFade 1.6s ease-out forwards;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @keyframes blipFade{
+    0%{ opacity:0; transform:scale(0.4); }
+    20%{ opacity:1; transform:scale(1); }
+    100%{ opacity:0; transform:scale(1); }
+  }
+  #loadingStatus{
+    font-size:19px;
+    color:var(--amber);
+    min-height:26px;
   }
 
-  /* CRT scanline + vignette overlay */
-  #crt{
-    position:fixed;
-    inset:0;
-    z-index:5;
-    pointer-events:none;
-    background:
-      repeating-linear-gradient(
-        to bottom,
-        rgba(0,0,0,0.15) 0px,
-        rgba(0,0,0,0.15) 1px,
-        transparent 2px,
-        transparent 3px
-      ),
-      radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
-    mix-blend-mode:multiply;
+  /* ---------- Result cards ---------- */
+  #resultView{ display:none; }
+  .card{
+    background:rgba(10,11,30,0.55);
+    border:2px solid var(--panel-edge);
+    border-radius:8px;
+    padding:16px 18px;
+    margin-bottom:18px;
   }
-
-  .stage{
+  .cardTitle{
+    font-family:'Press Start 2P', monospace;
+    font-size:12px;
+    letter-spacing:1.5px;
+    color:var(--amber);
+    margin:0 0 12px;
+  }
+  .summaryText{
+    font-size:19px;
+    line-height:1.5;
+    color:var(--ink);
+    margin:0;
+  }
+  .highlightList{
+    list-style:none;
+    margin:0;
+    padding:0;
+  }
+  .highlightList li{
+    font-size:18px;
+    line-height:1.5;
+    padding-left:22px;
     position:relative;
-    z-index:10;
-    height:100%;
+    margin-bottom:8px;
+  }
+  .highlightList li::before{
+    content:"★";
+    position:absolute;
+    left:0;
+    color:var(--cyan);
+    font-size:14px;
+    top:2px;
+  }
+  .keywordWrap{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .keywordChip{
+    background:var(--panel);
+    border:2px solid var(--cyan);
+    color:var(--cyan);
+    font-family:'VT323', monospace;
+    font-size:17px;
+    padding:6px 14px;
+    border-radius:20px;
+    cursor:pointer;
+    transition:background 0.15s, color 0.15s;
+  }
+  .keywordChip:hover{ background:var(--cyan); color:var(--void); }
+  .keywordDef{
+    display:none;
+    font-size:17px;
+    color:var(--ink-dim);
+    margin-top:10px;
+    padding:10px 12px;
+    border-left:2px solid var(--cyan);
+    background:rgba(76,224,210,0.06);
+  }
+  .keywordDef.open{ display:block; }
+
+  /* ---------- API key modal ---------- */
+  #keyModal{
+    position:fixed;
+    inset:0;
+    z-index:50;
+    background:rgba(10,11,30,0.85);
     display:flex;
     align-items:center;
     justify-content:center;
     padding:24px;
   }
+  #keyModal .cabinet{ max-width:420px; }
+  #keyModal p{ font-size:17px; color:var(--ink-dim); line-height:1.5; }
+  #keyModal a{ color:var(--cyan); }
 
-  .cabinet{
-    width:100%;
-    max-width:560px;
-    background:linear-gradient(180deg, var(--panel), #14112a);
-    border:3px solid var(--panel-edge);
-    border-radius:10px;
-    box-shadow:
-      0 0 0 6px rgba(76,224,210,0.06),
-      0 30px 60px rgba(0,0,0,0.55),
-      inset 0 1px 0 rgba(255,255,255,0.05);
-    padding:32px 28px 28px;
+  #errorView{
+    display:none;
     text-align:center;
+    padding:20px 0;
   }
+  #errorView p{ font-size:18px; color:var(--ink-dim); margin-bottom:20px; }
 
-  .titleRow{
+  .bottomRow{
     display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:14px;
-    margin-bottom:6px;
-  }
-
-  #rocketIcon{
-    width:44px;
-    height:auto;
-    animation:bob 2.4s ease-in-out infinite;
-    filter:drop-shadow(0 0 6px rgba(76,224,210,0.5));
-  }
-
-  @keyframes bob{
-    0%,100%{ transform:translateY(0) rotate(-2deg); }
-    50%{ transform:translateY(-6px) rotate(2deg); }
-  }
-
-  h1{
-    font-family:'Press Start 2P', monospace;
-    font-size:clamp(18px, 5vw, 28px);
-    line-height:1.4;
-    margin:0;
-    color:var(--cyan);
-    text-shadow:
-      0 0 6px rgba(76,224,210,0.7),
-      0 0 18px rgba(76,224,210,0.35);
-    letter-spacing:1px;
-  }
-
-  .missionTag{
-    font-family:'Press Start 2P', monospace;
-    font-size:11px;
-    color:var(--amber);
-    letter-spacing:3px;
-    margin:14px 0 0;
-    text-shadow:0 0 8px rgba(255,209,102,0.5);
-  }
-
-  .tagline{
-    font-size:19px;
-    color:var(--ink-dim);
-    margin:10px 0 28px;
-    letter-spacing:0.5px;
-  }
-
-  .ufoRow{
-    display:flex;
-    justify-content:center;
-    gap:28px;
-    margin:6px 0 28px;
-  }
-
-  .ufoRow img{
-    width:46px;
-    animation:drift 3.6s ease-in-out infinite;
-  }
-  .ufoRow img:nth-child(2){ animation-delay:0.6s; }
-  .ufoRow img:nth-child(3){ animation-delay:1.2s; }
-
-  @keyframes drift{
-    0%,100%{ transform:translateY(0); }
-    50%{ transform:translateY(-8px); }
-  }
-
-  fieldset{
-    border:none;
-    margin:0 0 22px;
-    padding:0;
-    text-align:left;
-  }
-
-  label{
-    display:block;
-    font-size:16px;
-    letter-spacing:1px;
-    color:var(--ink-dim);
-    text-transform:uppercase;
-    margin-bottom:6px;
-  }
-
-  input[type="text"]{
-    width:100%;
-    background:var(--void);
-    border:2px solid var(--panel-edge);
-    border-radius:6px;
-    color:var(--ink);
-    font-family:'VT323', monospace;
-    font-size:20px;
-    padding:10px 12px;
-    outline:none;
-    transition:border-color 0.15s, box-shadow 0.15s;
-  }
-
-  input[type="text"]:focus,
-  .uploadZone:focus-within{
-    border-color:var(--cyan);
-    box-shadow:0 0 0 3px rgba(76,224,210,0.25);
-  }
-
-  .uploadZone{
-    border:2px dashed var(--panel-edge);
-    border-radius:6px;
-    padding:18px 14px;
-    cursor:pointer;
-    transition:border-color 0.15s, background 0.15s;
-    position:relative;
-  }
-
-  .uploadZone:hover{
-    border-color:var(--cyan);
-    background:rgba(76,224,210,0.05);
-  }
-
-  .uploadZone input[type="file"]{
-    position:absolute;
-    inset:0;
-    opacity:0;
-    cursor:pointer;
-  }
-
-  .uploadZone .zoneLabel{
-    font-size:18px;
-    color:var(--ink);
-  }
-
-  .uploadZone .zoneHint{
-    font-size:15px;
-    color:var(--ink-dim);
-    margin-top:4px;
-  }
-
-  .uploadZone.hasFile{
-    border-color:var(--cyan);
-    border-style:solid;
-  }
-
-  .uploadZone.hasFile .zoneLabel{
-    color:var(--cyan);
-  }
-
-  #playBtn{
-    width:100%;
-    font-family:'Press Start 2P', monospace;
-    font-size:16px;
-    letter-spacing:1px;
-    padding:16px;
-    border-radius:8px;
-    border:none;
-    cursor:pointer;
-    background:var(--ink-dim);
-    color:var(--void);
-    opacity:0.45;
-    pointer-events:none;
-    transition:opacity 0.2s, transform 0.1s, background 0.2s, box-shadow 0.2s;
-  }
-
-  #playBtn.ready{
-    background:var(--cyan);
-    opacity:1;
-    pointer-events:auto;
-    box-shadow:0 0 20px rgba(76,224,210,0.45);
-  }
-
-  #playBtn.ready:hover{
-    transform:translateY(-2px);
-    box-shadow:0 0 28px rgba(76,224,210,0.65);
-  }
-
-  #playBtn.ready:active{
-    transform:translateY(0);
-  }
-
-  #status{
-    margin-top:14px;
-    font-size:16px;
-    min-height:20px;
-    color:var(--amber);
-  }
-
-  @media (prefers-reduced-motion: reduce){
-    #rocketIcon, .ufoRow img{ animation:none; }
+    gap:12px;
+    margin-top:8px;
   }
 </style>
 </head>
@@ -270,168 +184,282 @@
 <div id="crt"></div>
 
 <div class="stage">
-  <div class="cabinet">
+  <div class="cabinet wide">
 
-    <div class="titleRow">
-      <img id="rocketIcon" alt="">
-      <h1>STUDY<br>INVADERS</h1>
-    </div>
-    <p class="missionTag">MISSION: RECALL</p>
-    <p class="tagline">Defend your grade. Shoot the right answer.</p>
-
-    <div class="ufoRow">
-      <img class="ufoGood" alt="">
-      <img class="ufoBad" alt="">
-      <img class="ufoGood" alt="">
+    <div class="topBar">
+      <button class="btnGhost" onclick="window.location.href='index.html'">&larr; Back</button>
+      <span class="agentTag">Agent: <span id="agentName">—</span></span>
     </div>
 
-    <fieldset>
-      <label for="username">Callsign (your name)</label>
-      <input type="text" id="username" placeholder="e.g. Alex Tan" autocomplete="off">
-    </fieldset>
+    <h2>MISSION BRIEFING</h2>
+    <p class="fileTag" id="fileTag">Decoding transmission...</p>
 
-    <fieldset>
-      <label>Mission notes</label>
-      <div class="uploadZone" id="uploadZone">
-        <input type="file" id="noteUpload" accept=".pdf,.txt,.png,.jpg,.jpeg">
-        <div class="zoneLabel" id="zoneLabel">Tap to upload your teacher's notes</div>
-        <div class="zoneHint">PDF, image, or text file</div>
+    <!-- Loading state -->
+    <div id="loadingView">
+      <div class="radar">
+        <div class="radarSweep"></div>
+        <div id="blipLayer"></div>
       </div>
-    </fieldset>
+      <div id="loadingStatus">Getting the spaceship ready...</div>
+    </div>
 
-    <button id="playBtn">PLAY</button>
-    <div id="status"></div>
+    <!-- Error state -->
+    <div id="errorView">
+      <p id="errorMessage">Transmission failed. Signal lost somewhere between here and the mothership.</p>
+      <button class="btnGhost" id="retryBtn">Try again</button>
+    </div>
+
+    <!-- Result state -->
+    <div id="resultView">
+      <div class="card">
+        <p class="cardTitle">SUMMARY</p>
+        <p class="summaryText" id="summaryText"></p>
+      </div>
+
+      <div class="card">
+        <p class="cardTitle">HIGHLIGHTS</p>
+        <ul class="highlightList" id="highlightList"></ul>
+      </div>
+
+      <div class="card">
+        <p class="cardTitle">KEYWORDS</p>
+        <div class="keywordWrap" id="keywordWrap"></div>
+      </div>
+
+      <div class="bottomRow">
+        <button class="btnPrimary ready" id="launchBtn">LAUNCH MISSION &gt;</button>
+      </div>
+    </div>
 
   </div>
 </div>
 
+<!-- API key setup modal -->
+<div id="keyModal" style="display:none;">
+  <div class="cabinet">
+    <h2 style="margin-bottom:14px;">GEMINI API KEY</h2>
+    <p>Study Invaders needs a Gemini API key to decode your notes. Get a free key from
+      <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>,
+      then paste it below. It's stored only in this browser.</p>
+    <fieldset>
+      <label for="apiKeyInput">API key</label>
+      <input type="password" id="apiKeyInput" placeholder="AIza...">
+    </fieldset>
+    <button class="btnPrimary ready" id="saveKeyBtn">SAVE &amp; CONTINUE</button>
+  </div>
+</div>
+
+<script src="assets/pixelart.js"></script>
+<script src="assets/starfield.js"></script>
 <script>
-/* ---------- Starfield background ---------- */
-const canvas = document.getElementById('starfield');
-const ctx = canvas.getContext('2d');
-let stars = [];
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const agentNameEl = document.getElementById('agentName');
+const fileTagEl = document.getElementById('fileTag');
+const loadingView = document.getElementById('loadingView');
+const errorView = document.getElementById('errorView');
+const resultView = document.getElementById('resultView');
+const loadingStatus = document.getElementById('loadingStatus');
+const blipLayer = document.getElementById('blipLayer');
+const keyModal = document.getElementById('keyModal');
 
-function resize(){
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const count = Math.floor((canvas.width * canvas.height) / 4000);
-  stars = Array.from({length: count}, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    r: Math.random() * 1.4 + 0.3,
-    speed: Math.random() * 0.15 + 0.02,
-    twinklePhase: Math.random() * Math.PI * 2
-  }));
-}
-window.addEventListener('resize', resize);
-resize();
+// ---------- Read handoff data from index.html ----------
+const username = sessionStorage.getItem('si_username');
+const noteRaw = sessionStorage.getItem('si_note');
 
-let t = 0;
-function drawStars(){
-  ctx.fillStyle = '#0a0b1e';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  for(const s of stars){
-    const twinkle = reducedMotion ? 1 : (Math.sin(t * 0.02 + s.twinklePhase) * 0.35 + 0.65);
-    ctx.globalAlpha = twinkle;
-    ctx.fillStyle = '#e9e6f7';
-    ctx.fillRect(s.x, s.y, s.r, s.r);
-    if(!reducedMotion){
-      s.y += s.speed;
-      if(s.y > canvas.height){ s.y = 0; s.x = Math.random() * canvas.width; }
-    }
-  }
-  ctx.globalAlpha = 1;
-  t++;
-  requestAnimationFrame(drawStars);
-}
-drawStars();
-
-/* ---------- Pixel-art sprite generator ---------- */
-// grid strings: each char maps to a palette color, '.' = transparent
-function pixelSprite(grid, palette, pixelSize = 6){
-  const rows = grid.length;
-  const cols = grid[0].length;
-  let rects = '';
-  for(let y = 0; y < rows; y++){
-    for(let x = 0; x < cols; x++){
-      const ch = grid[y][x];
-      if(ch === '.') continue;
-      const color = palette[ch];
-      rects += `<rect x="${x*pixelSize}" y="${y*pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${color}"/>`;
-    }
-  }
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" viewBox="0 0 ${cols*pixelSize} ${rows*pixelSize}">${rects}</svg>`;
-  return 'data:image/svg+xml;base64,' + btoa(svg);
+if(!username || !noteRaw){
+  window.location.href = 'index.html';
 }
 
-const rocketGrid = [
-  '..111..',
-  '.11211.',
-  '.12221.',
-  '.12221.',
-  '.11211.',
-  '1111111',
-  '1333331',
-  '1113111',
-  '..131..',
-  '.14441.',
-  '..444..',
-  '...4...'
+const note = noteRaw ? JSON.parse(noteRaw) : null;
+agentNameEl.textContent = username || '—';
+if(note) fileTagEl.textContent = `Decoding: ${note.name}`;
+
+// ---------- Loading flourishes ----------
+const statusMessages = [
+  'Getting the spaceship ready...',
+  'Tiny crew is loading the ammo...',
+  'Waking up the radar operator...',
+  'Briefing the alien scouts...',
+  'Polishing the laser cannons...',
+  'Decoding your teacher\'s secrets...',
+  'Teaching the UFOs their lines...',
+  'Double-checking the star map...'
 ];
-const rocketPalette = { '1':'#c9d6ff', '2':'#0a0b1e', '3':'#4ce0d2', '4':'#ffd166' };
+// Shuffle so the sequence feels fresh each time (Fisher-Yates).
+for(let i = statusMessages.length - 1; i > 0; i--){
+  const j = Math.floor(Math.random() * (i + 1));
+  [statusMessages[i], statusMessages[j]] = [statusMessages[j], statusMessages[i]];
+}
+loadingStatus.textContent = statusMessages[0];
+let statusIdx = 0;
+const statusInterval = setInterval(() => {
+  statusIdx = (statusIdx + 1) % statusMessages.length;
+  loadingStatus.textContent = statusMessages[statusIdx];
+}, 1700);
 
-const ufoGrid = [
-  '....111....',
-  '...15551...',
-  '11111111111',
-  '16161616161',
-  '.11111111..',
-  '...11111...'
-];
-const ufoGoodPalette = { '1':'#4ce0d2', '5':'#0a0b1e', '6':'#e9e6f7' };
-const ufoBadPalette  = { '1':'#ff5470', '5':'#0a0b1e', '6':'#ffd166' };
+const blipInterval = setInterval(() => {
+  const blip = document.createElement('div');
+  blip.className = 'radarBlip';
+  blip.style.left = (20 + Math.random() * 60) + '%';
+  blip.style.top = (20 + Math.random() * 60) + '%';
+  blipLayer.appendChild(blip);
+  setTimeout(() => blip.remove(), 1600);
+}, 500);
 
-document.getElementById('rocketIcon').src = pixelSprite(rocketGrid, rocketPalette, 5);
-document.querySelectorAll('.ufoGood').forEach(el => el.src = pixelSprite(ufoGrid, ufoGoodPalette, 4));
-document.querySelectorAll('.ufoBad').forEach(el => el.src = pixelSprite(ufoGrid, ufoBadPalette, 4));
-
-/* ---------- Form logic ---------- */
-const usernameInput = document.getElementById('username');
-const uploadInput = document.getElementById('noteUpload');
-const uploadZone = document.getElementById('uploadZone');
-const zoneLabel = document.getElementById('zoneLabel');
-const playBtn = document.getElementById('playBtn');
-const status = document.getElementById('status');
-
-let uploadedFile = null;
-
-function checkReady(){
-  const ready = usernameInput.value.trim().length > 0 && uploadedFile !== null;
-  playBtn.classList.toggle('ready', ready);
+function stopLoadingFlourishes(){
+  clearInterval(statusInterval);
+  clearInterval(blipInterval);
 }
 
-usernameInput.addEventListener('input', checkReady);
+// ---------- API key handling ----------
+function getApiKey(){
+  return localStorage.getItem('si_geminiKey');
+}
 
-uploadInput.addEventListener('change', () => {
-  if(uploadInput.files.length > 0){
-    uploadedFile = uploadInput.files[0];
-    zoneLabel.textContent = uploadedFile.name;
-    uploadZone.classList.add('hasFile');
+document.getElementById('saveKeyBtn').addEventListener('click', () => {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if(!val) return;
+  localStorage.setItem('si_geminiKey', val);
+  keyModal.style.display = 'none';
+  runBriefing();
+});
+
+// ---------- Gemini call ----------
+const RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    highlights: { type: "array", items: { type: "string" } },
+    keywords: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          term: { type: "string" },
+          definition: { type: "string" }
+        },
+        required: ["term", "definition"]
+      }
+    }
+  },
+  required: ["summary", "highlights", "keywords"]
+};
+
+const PROMPT = `You are a study assistant helping a student quickly review their teacher's notes before a quiz.
+Based ONLY on the attached notes (do not invent information that isn't supported by them), produce:
+- summary: a clear 3-5 sentence overview of what the notes cover, written for quick review.
+- highlights: 5 to 8 short bullet-point strings capturing the most important facts, definitions, or must-know statements.
+- keywords: 5 to 10 key terms from the notes, each with a one-sentence definition in the student's own-language style (simple, clear).
+Keep language encouraging and appropriate for a student.`;
+
+async function callGemini(apiKey){
+  const parts = [{ text: PROMPT }];
+  if(note.isText){
+    parts.push({ text: "NOTES CONTENT:\n" + note.content });
   } else {
-    uploadedFile = null;
-    zoneLabel.textContent = "Tap to upload your teacher's notes";
-    uploadZone.classList.remove('hasFile');
+    parts.push({ inline_data: { mime_type: note.mimeType, data: note.content } });
   }
-  checkReady();
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: RESPONSE_SCHEMA
+        }
+      })
+    }
+  );
+
+  if(!res.ok){
+    const errText = await res.text();
+    throw new Error(`Gemini API error (${res.status}): ${errText}`);
+  }
+
+  const data = await res.json();
+  const textOut = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if(!textOut) throw new Error('No content returned from Gemini.');
+  return JSON.parse(textOut);
+}
+
+function renderResults(learnData){
+  document.getElementById('summaryText').textContent = learnData.summary;
+
+  const list = document.getElementById('highlightList');
+  list.innerHTML = '';
+  learnData.highlights.forEach(h => {
+    const li = document.createElement('li');
+    li.textContent = h;
+    list.appendChild(li);
+  });
+
+  const wrap = document.getElementById('keywordWrap');
+  wrap.innerHTML = '';
+
+  let holder = document.getElementById('keywordDefsHolder');
+  if(holder) holder.remove();
+  holder = document.createElement('div');
+  holder.id = 'keywordDefsHolder';
+
+  learnData.keywords.forEach((kw, i) => {
+    const chip = document.createElement('button');
+    chip.className = 'keywordChip';
+    chip.type = 'button';
+    chip.textContent = kw.term;
+
+    const def = document.createElement('div');
+    def.className = 'keywordDef';
+    def.id = `kwdef-${i}`;
+    def.textContent = kw.definition;
+
+    chip.addEventListener('click', () => def.classList.toggle('open'));
+
+    wrap.appendChild(chip);
+    holder.appendChild(def);
+  });
+
+  wrap.after(holder);
+}
+
+async function runBriefing(){
+  const apiKey = getApiKey();
+  if(!apiKey){
+    keyModal.style.display = 'flex';
+    return;
+  }
+
+  loadingView.style.display = 'block';
+  errorView.style.display = 'none';
+  resultView.style.display = 'none';
+
+  try{
+    const learnData = await callGemini(apiKey);
+    sessionStorage.setItem('si_learnData', JSON.stringify(learnData));
+    stopLoadingFlourishes();
+    loadingView.style.display = 'none';
+    resultView.style.display = 'block';
+    renderResults(learnData);
+  } catch(err){
+    console.error(err);
+    stopLoadingFlourishes();
+    loadingView.style.display = 'none';
+    errorView.style.display = 'block';
+    document.getElementById('errorMessage').textContent =
+      "Transmission failed: " + err.message;
+  }
+}
+
+document.getElementById('retryBtn').addEventListener('click', runBriefing);
+
+document.getElementById('launchBtn').addEventListener('click', () => {
+  window.location.href = 'play.html';
 });
 
-playBtn.addEventListener('click', () => {
-  if(!playBtn.classList.contains('ready')) return;
-  status.textContent = `Launch sequence started for ${usernameInput.value.trim()}... (game screen coming next)`;
-  // TODO: hand off to Learn screen (AI summary/highlight generation) once built,
-  // then to the Play minigame screen. For now this is just the prototype hook point.
-});
+// Kick off on page load
+if(note) runBriefing();
 </script>
 
 </body>
