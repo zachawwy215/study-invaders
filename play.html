@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission: Defend — Study Invaders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .placeholderBody{
+    text-align:center;
+    padding:30px 10px;
+  }
+  .placeholderBody p{
+    font-size:19px;
+    color:var(--ink-dim);
+    line-height:1.6;
+    margin-bottom:26px;
+  }
+  .placeholderBadge{
+    display:inline-block;
+    font-family:'Press Start 2P', monospace;
+    font-size:11px;
+    letter-spacing:2px;
+    color:var(--amber);
+    border:2px solid var(--amber);
+    border-radius:20px;
+    padding:6px 14px;
+    margin-bottom:20px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+<div id="crt"></div>
+
+<div class="stage">
+  <div class="cabinet wide">
+
+    <div class="topBar">
+      <button class="btnGhost" onclick="window.location.href='learn.html'">&larr; Back</button>
+      <span class="agentTag">Agent: <span id="agentName">—</span></span>
+    </div>
+
+    <h2>MISSION: DEFEND</h2>
+
+    <div class="placeholderBody">
+      <span class="placeholderBadge">🚧 UNDER CONSTRUCTION</span>
+      <p>
+        This is where the UFO-shooting minigame will live — four UFOs will drift
+        in carrying answer choices, and you'll shoot down the wrong ones to
+        protect your 3 good UFOs before they're overrun.
+      </p>
+      <button class="btnPrimary ready" id="continueBtn">CONTINUE TO RESULTS (PREVIEW) &gt;</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="assets/pixelart.js"></script>
+<script src="assets/starfield.js"></script>
+<script>
+const username = sessionStorage.getItem('si_username');
+if(!username){
+  window.location.href = 'index.html';
+}
+document.getElementById('agentName').textContent = username || '—';
+
+document.getElementById('continueBtn').addEventListener('click', () => {
+  window.location.href = 'results.html';
+});
+</script>
+
+</body>
+</html>

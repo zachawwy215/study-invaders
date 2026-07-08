@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission Results — Study Invaders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .placeholderBody{
+    text-align:center;
+    padding:30px 10px;
+  }
+  .placeholderBody p{
+    font-size:19px;
+    color:var(--ink-dim);
+    line-height:1.6;
+    margin-bottom:26px;
+  }
+  .placeholderBadge{
+    display:inline-block;
+    font-family:'Press Start 2P', monospace;
+    font-size:11px;
+    letter-spacing:2px;
+    color:var(--amber);
+    border:2px solid var(--amber);
+    border-radius:20px;
+    padding:6px 14px;
+    margin-bottom:20px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+<div id="crt"></div>
+
+<div class="stage">
+  <div class="cabinet wide">
+
+    <div class="topBar">
+      <button class="btnGhost" onclick="window.location.href='index.html'">&larr; Start over</button>
+      <span class="agentTag">Agent: <span id="agentName">—</span></span>
+    </div>
+
+    <h2>MISSION RESULTS</h2>
+
+    <div class="placeholderBody">
+      <span class="placeholderBadge">🚧 UNDER CONSTRUCTION</span>
+      <p>
+        This is where your score and subtopic breakdown (strong vs. weak areas)
+        will appear, along with a copyable results block that teachers can
+        paste into their own dashboard.
+      </p>
+      <button class="btnGhost" onclick="window.location.href='index.html'">Back to Title</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="assets/pixelart.js"></script>
+<script src="assets/starfield.js"></script>
+<script>
+const username = sessionStorage.getItem('si_username');
+document.getElementById('agentName').textContent = username || '—';
+</script>
+
+</body>
+</html>
