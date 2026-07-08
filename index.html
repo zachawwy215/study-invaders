@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
+<script src="https://js.puter.com/v2/"></script>
 <style>
   #rocketIcon{
     width:44px;
@@ -33,6 +34,22 @@
   }
   #loadingSection, #errorSection{ display:none; }
   #errorSection p{ font-size:18px; color:var(--ink-dim); margin-bottom:20px; text-align:center; }
+
+  .puterNotice{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    font-size:15px;
+    line-height:1.4;
+    color:var(--ink-dim);
+    background:rgba(76,224,210,0.06);
+    border:1px solid var(--panel-edge);
+    border-radius:6px;
+    padding:10px 12px;
+    margin-bottom:18px;
+    text-align:left;
+  }
+  .puterNotice .lockIcon{ font-size:16px; line-height:1.4; }
 </style>
 </head>
 <body>
@@ -72,6 +89,11 @@
         </div>
       </fieldset>
 
+      <div class="puterNotice">
+        <span class="lockIcon">🔒</span>
+        <span>One extra step: when you hit Play, a window will pop up asking you to sign in with a free Puter account. That's what powers the AI part — it only takes a few seconds, and you only do it once on this device.</span>
+      </div>
+
       <button id="playBtn" class="btnPrimary">PLAY</button>
       <div id="status"></div>
     </div>
@@ -94,21 +116,6 @@
   </div>
 </div>
 
-<!-- API key setup modal -->
-<div id="keyModal" class="modalOverlay" style="display:none;">
-  <div class="cabinet">
-    <h2 style="margin-bottom:14px;">GEMINI API KEY</h2>
-    <p>Study Invaders needs a Gemini API key to decode your notes. Get a free key from
-      <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>,
-      then paste it below. It's stored only in this browser.</p>
-    <fieldset>
-      <label for="apiKeyInput">API key</label>
-      <input type="password" id="apiKeyInput" placeholder="AIza...">
-    </fieldset>
-    <button class="btnPrimary ready" id="saveKeyBtn">SAVE &amp; CONTINUE</button>
-  </div>
-</div>
-
 <script src="assets/pixelart.js"></script>
 <script src="assets/starfield.js"></script>
 <script>
@@ -124,7 +131,6 @@ const loadingSection = document.getElementById('loadingSection');
 const errorSection = document.getElementById('errorSection');
 const loadingStatus = document.getElementById('loadingStatus');
 const blipLayer = document.getElementById('blipLayer');
-const keyModal = document.getElementById('keyModal');
 
 let uploadedFile = null;
 
@@ -207,88 +213,68 @@ function stopLoadingFlourishes(){
   clearInterval(blipInterval);
 }
 
-// ---------- API key handling ----------
-function getApiKey(){
-  return localStorage.getItem('si_geminiKey');
+// ---------- AI call (via Puter.js — no API key needed) ----------
+const PROMPT = `You are a study assistant helping a student quickly review their teacher's notes before a quiz.
+Based ONLY on the attached notes (do not invent information that isn't supported by them), produce a study briefing.
+
+Respond with ONLY raw JSON (no markdown code fences, no extra commentary before or after) matching exactly this shape:
+{
+  "summary": "a clear 3-5 sentence overview of what the notes cover, written for quick review",
+  "highlights": ["5 to 8 short bullet-point strings capturing the most important facts, definitions, or must-know statements"],
+  "keywords": [{"term": "a key term from the notes", "definition": "a one-sentence, simple definition of that term"}]
+}
+Include 5 to 10 items in keywords. Keep language encouraging and appropriate for a student.`;
+
+// Puter.js can return the AI response in a couple of different shapes
+// depending on which underlying model handled the request — this pulls
+// the plain text out of whichever shape shows up.
+function extractResponseText(response){
+  if(typeof response === 'string') return response;
+  if(response?.message?.content){
+    const content = response.message.content;
+    if(typeof content === 'string') return content;
+    if(Array.isArray(content) && content[0]?.text) return content[0].text;
+  }
+  if(response?.text) return response.text;
+  return String(response);
 }
 
-document.getElementById('saveKeyBtn').addEventListener('click', () => {
-  const val = document.getElementById('apiKeyInput').value.trim();
-  if(!val) return;
-  localStorage.setItem('si_geminiKey', val);
-  keyModal.style.display = 'none';
-  runBriefing();
-});
+function parseJsonResponse(raw){
+  const cleaned = raw
+    .trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/, '')
+    .replace(/```$/, '')
+    .trim();
+  return JSON.parse(cleaned);
+}
 
-// ---------- Gemini call ----------
-const RESPONSE_SCHEMA = {
-  type: "object",
-  properties: {
-    summary: { type: "string" },
-    highlights: { type: "array", items: { type: "string" } },
-    keywords: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          term: { type: "string" },
-          definition: { type: "string" }
-        },
-        required: ["term", "definition"]
-      }
-    }
-  },
-  required: ["summary", "highlights", "keywords"]
-};
+async function uploadNoteAndGetUrl(note){
+  // Convert the stored base64 content back into a real Blob to upload.
+  const byteChars = atob(note.content);
+  const byteNumbers = new Array(byteChars.length);
+  for(let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: note.mimeType });
 
-const PROMPT = `You are a study assistant helping a student quickly review their teacher's notes before a quiz.
-Based ONLY on the attached notes (do not invent information that isn't supported by them), produce:
-- summary: a clear 3-5 sentence overview of what the notes cover, written for quick review.
-- highlights: 5 to 8 short bullet-point strings capturing the most important facts, definitions, or must-know statements.
-- keywords: 5 to 10 key terms from the notes, each with a one-sentence definition in the student's own-language style (simple, clear).
-Keep language encouraging and appropriate for a student.`;
+  const uploaded = await puter.fs.write(note.name, blob);
+  return await puter.fs.getReadURL(uploaded.path);
+}
 
-async function callGemini(apiKey, note){
-  const parts = [{ text: PROMPT }];
+async function callAI(note){
+  let response;
   if(note.isText){
-    parts.push({ text: "NOTES CONTENT:\n" + note.content });
+    const fullPrompt = PROMPT + "\n\nNOTES CONTENT:\n" + note.content;
+    response = await puter.ai.chat(fullPrompt, { model: 'google/gemini-3.5-flash' });
   } else {
-    parts.push({ inline_data: { mime_type: note.mimeType, data: note.content } });
+    const fileUrl = await uploadNoteAndGetUrl(note);
+    response = await puter.ai.chat(PROMPT, fileUrl, { model: 'google/gemini-3.5-flash' });
   }
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: RESPONSE_SCHEMA
-        }
-      })
-    }
-  );
-
-  if(!res.ok){
-    const errText = await res.text();
-    throw new Error(`Gemini API error (${res.status}): ${errText}`);
-  }
-
-  const data = await res.json();
-  const textOut = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if(!textOut) throw new Error('No content returned from Gemini.');
-  return JSON.parse(textOut);
+  const rawText = extractResponseText(response);
+  return parseJsonResponse(rawText);
 }
 
 async function runBriefing(){
-  const apiKey = getApiKey();
-  if(!apiKey){
-    keyModal.style.display = 'flex';
-    return;
-  }
-
   const noteRaw = sessionStorage.getItem('si_note');
   if(!noteRaw) return;
   const note = JSON.parse(noteRaw);
@@ -299,7 +285,7 @@ async function runBriefing(){
   startLoadingFlourishes();
 
   try{
-    const learnData = await callGemini(apiKey, note);
+    const learnData = await callAI(note);
     sessionStorage.setItem('si_learnData', JSON.stringify(learnData));
     stopLoadingFlourishes();
     window.location.href = 'learn.html';
@@ -326,6 +312,21 @@ playBtn.addEventListener('click', async () => {
   if(missing.length > 0){
     status.textContent = `Enter ${missing.join(' and ')} before launching.`;
     status.style.color = 'var(--red)';
+    return;
+  }
+
+  // Trigger Puter sign-in right away, as directly tied to this click as
+  // possible, so the browser doesn't block the popup.
+  try{
+    if(!puter.auth.isSignedIn()){
+      status.style.color = 'var(--amber)';
+      status.textContent = 'Waiting for Puter sign-in...';
+      await puter.auth.signIn();
+    }
+  } catch(err){
+    console.error(err);
+    status.style.color = 'var(--red)';
+    status.textContent = "Sign-in didn't go through — try clicking Play again.";
     return;
   }
 
