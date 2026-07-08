@@ -3,179 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mission Briefing — Study Invaders</title>
+<title>Study Invaders: Mission Recall</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
 <style>
-  .topBar{
+  #rocketIcon{
+    width:44px;
+    height:auto;
+    animation:bob 2.4s ease-in-out infinite;
+    filter:drop-shadow(0 0 6px rgba(76,224,210,0.5));
+  }
+  @keyframes bob{
+    0%,100%{ transform:translateY(0) rotate(-2deg); }
+    50%{ transform:translateY(-6px) rotate(2deg); }
+  }
+  .ufoRow{
     display:flex;
-    align-items:center;
-    justify-content:space-between;
-    margin-bottom:18px;
-  }
-  .agentTag{
-    font-size:16px;
-    color:var(--ink-dim);
-    letter-spacing:0.5px;
-  }
-  .agentTag span{ color:var(--cyan); }
-
-  h2{
-    font-family:'Press Start 2P', monospace;
-    font-size:15px;
-    color:var(--cyan);
-    letter-spacing:1px;
-    margin:0 0 4px;
-    text-shadow:0 0 6px rgba(76,224,210,0.5);
-  }
-  .fileTag{
-    font-size:16px;
-    color:var(--ink-dim);
-    margin:0 0 26px;
-  }
-
-  /* ---------- Radar loader ---------- */
-  #loadingView{
-    text-align:center;
-    padding:20px 0 8px;
-  }
-  .radar{
-    width:150px;
-    height:150px;
-    margin:0 auto 22px;
-    border-radius:50%;
-    position:relative;
-    background:
-      radial-gradient(circle, rgba(76,224,210,0.06) 0%, transparent 70%),
-      repeating-radial-gradient(circle, transparent 0, transparent 24px, rgba(76,224,210,0.12) 25px);
-    border:2px solid var(--panel-edge);
-    overflow:hidden;
-  }
-  .radarSweep{
-    position:absolute;
-    inset:0;
-    background:conic-gradient(from 0deg, rgba(76,224,210,0.55), transparent 35%);
-    animation:spin 2.2s linear infinite;
-  }
-  .radarBlip{
-    position:absolute;
-    width:6px;
-    height:6px;
-    background:var(--amber);
-    border-radius:50%;
-    box-shadow:0 0 6px rgba(255,209,102,0.9);
-    animation:blipFade 1.6s ease-out forwards;
-  }
-  @keyframes spin{ to{ transform:rotate(360deg); } }
-  @keyframes blipFade{
-    0%{ opacity:0; transform:scale(0.4); }
-    20%{ opacity:1; transform:scale(1); }
-    100%{ opacity:0; transform:scale(1); }
-  }
-  #loadingStatus{
-    font-size:19px;
-    color:var(--amber);
-    min-height:26px;
-  }
-
-  /* ---------- Result cards ---------- */
-  #resultView{ display:none; }
-  .card{
-    background:rgba(10,11,30,0.55);
-    border:2px solid var(--panel-edge);
-    border-radius:8px;
-    padding:16px 18px;
-    margin-bottom:18px;
-  }
-  .cardTitle{
-    font-family:'Press Start 2P', monospace;
-    font-size:12px;
-    letter-spacing:1.5px;
-    color:var(--amber);
-    margin:0 0 12px;
-  }
-  .summaryText{
-    font-size:19px;
-    line-height:1.5;
-    color:var(--ink);
-    margin:0;
-  }
-  .highlightList{
-    list-style:none;
-    margin:0;
-    padding:0;
-  }
-  .highlightList li{
-    font-size:18px;
-    line-height:1.5;
-    padding-left:22px;
-    position:relative;
-    margin-bottom:8px;
-  }
-  .highlightList li::before{
-    content:"★";
-    position:absolute;
-    left:0;
-    color:var(--cyan);
-    font-size:14px;
-    top:2px;
-  }
-  .keywordWrap{
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px;
-  }
-  .keywordChip{
-    background:var(--panel);
-    border:2px solid var(--cyan);
-    color:var(--cyan);
-    font-family:'VT323', monospace;
-    font-size:17px;
-    padding:6px 14px;
-    border-radius:20px;
-    cursor:pointer;
-    transition:background 0.15s, color 0.15s;
-  }
-  .keywordChip:hover{ background:var(--cyan); color:var(--void); }
-  .keywordDef{
-    display:none;
-    font-size:17px;
-    color:var(--ink-dim);
-    margin-top:10px;
-    padding:10px 12px;
-    border-left:2px solid var(--cyan);
-    background:rgba(76,224,210,0.06);
-  }
-  .keywordDef.open{ display:block; }
-
-  /* ---------- API key modal ---------- */
-  #keyModal{
-    position:fixed;
-    inset:0;
-    z-index:50;
-    background:rgba(10,11,30,0.85);
-    display:flex;
-    align-items:center;
     justify-content:center;
-    padding:24px;
+    gap:28px;
+    margin:6px 0 28px;
   }
-  #keyModal .cabinet{ max-width:420px; }
-  #keyModal p{ font-size:17px; color:var(--ink-dim); line-height:1.5; }
-  #keyModal a{ color:var(--cyan); }
-
-  #errorView{
-    display:none;
-    text-align:center;
-    padding:20px 0;
+  .ufoRow img{ width:46px; animation:drift 3.6s ease-in-out infinite; }
+  .ufoRow img:nth-child(2){ animation-delay:0.6s; }
+  .ufoRow img:nth-child(3){ animation-delay:1.2s; }
+  @keyframes drift{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-8px); }
   }
-  #errorView p{ font-size:18px; color:var(--ink-dim); margin-bottom:20px; }
-
-  .bottomRow{
-    display:flex;
-    gap:12px;
-    margin-top:8px;
-  }
+  #loadingSection, #errorSection{ display:none; }
+  #errorSection p{ font-size:18px; color:var(--ink-dim); margin-bottom:20px; text-align:center; }
 </style>
 </head>
 <body>
@@ -184,58 +41,61 @@
 <div id="crt"></div>
 
 <div class="stage">
-  <div class="cabinet wide">
+  <div class="cabinet">
 
-    <div class="topBar">
-      <button class="btnGhost" onclick="window.location.href='index.html'">&larr; Back</button>
-      <span class="agentTag">Agent: <span id="agentName">—</span></span>
+    <div class="titleRow">
+      <img id="rocketIcon" class="spriteRocket" alt="">
+      <h1>STUDY<br>INVADERS</h1>
+    </div>
+    <p class="missionTag">MISSION: RECALL</p>
+    <p class="tagline">Defend your grade. Shoot the right answer.</p>
+
+    <div class="ufoRow">
+      <img class="spriteUfoGood" alt="">
+      <img class="spriteUfoBad" alt="">
+      <img class="spriteUfoGood" alt="">
     </div>
 
-    <h2>MISSION BRIEFING</h2>
-    <p class="fileTag" id="fileTag">Decoding transmission...</p>
+    <!-- Upload form -->
+    <div id="formSection">
+      <fieldset>
+        <label for="username">Callsign (your name)</label>
+        <input type="text" id="username" placeholder="e.g. Alex Tan" autocomplete="off">
+      </fieldset>
 
-    <!-- Loading state -->
-    <div id="loadingView">
-      <div class="radar">
+      <fieldset>
+        <label>Mission notes</label>
+        <div class="uploadZone" id="uploadZone">
+          <input type="file" id="noteUpload" accept=".pdf,.txt,.png,.jpg,.jpeg">
+          <div class="zoneLabel" id="zoneLabel">Tap to upload your teacher's notes</div>
+          <div class="zoneHint">PDF, image, or text file</div>
+        </div>
+      </fieldset>
+
+      <button id="playBtn" class="btnPrimary">PLAY</button>
+      <div id="status"></div>
+    </div>
+
+    <!-- Loading state (shown in place of the form once Play is clicked) -->
+    <div id="loadingSection">
+      <div class="radarLoader">
         <div class="radarSweep"></div>
         <div id="blipLayer"></div>
       </div>
-      <div id="loadingStatus">Getting the spaceship ready...</div>
+      <div id="loadingStatus" class="loadingStatusText">Getting the spaceship ready...</div>
     </div>
 
     <!-- Error state -->
-    <div id="errorView">
-      <p id="errorMessage">Transmission failed. Signal lost somewhere between here and the mothership.</p>
+    <div id="errorSection">
+      <p id="errorMessage">Transmission failed.</p>
       <button class="btnGhost" id="retryBtn">Try again</button>
-    </div>
-
-    <!-- Result state -->
-    <div id="resultView">
-      <div class="card">
-        <p class="cardTitle">SUMMARY</p>
-        <p class="summaryText" id="summaryText"></p>
-      </div>
-
-      <div class="card">
-        <p class="cardTitle">HIGHLIGHTS</p>
-        <ul class="highlightList" id="highlightList"></ul>
-      </div>
-
-      <div class="card">
-        <p class="cardTitle">KEYWORDS</p>
-        <div class="keywordWrap" id="keywordWrap"></div>
-      </div>
-
-      <div class="bottomRow">
-        <button class="btnPrimary ready" id="launchBtn">LAUNCH MISSION &gt;</button>
-      </div>
     </div>
 
   </div>
 </div>
 
 <!-- API key setup modal -->
-<div id="keyModal" style="display:none;">
+<div id="keyModal" class="modalOverlay" style="display:none;">
   <div class="cabinet">
     <h2 style="margin-bottom:14px;">GEMINI API KEY</h2>
     <p>Study Invaders needs a Gemini API key to decode your notes. Get a free key from
@@ -252,26 +112,59 @@
 <script src="assets/pixelart.js"></script>
 <script src="assets/starfield.js"></script>
 <script>
-const agentNameEl = document.getElementById('agentName');
-const fileTagEl = document.getElementById('fileTag');
-const loadingView = document.getElementById('loadingView');
-const errorView = document.getElementById('errorView');
-const resultView = document.getElementById('resultView');
+const usernameInput = document.getElementById('username');
+const uploadInput = document.getElementById('noteUpload');
+const uploadZone = document.getElementById('uploadZone');
+const zoneLabel = document.getElementById('zoneLabel');
+const playBtn = document.getElementById('playBtn');
+const status = document.getElementById('status');
+
+const formSection = document.getElementById('formSection');
+const loadingSection = document.getElementById('loadingSection');
+const errorSection = document.getElementById('errorSection');
 const loadingStatus = document.getElementById('loadingStatus');
 const blipLayer = document.getElementById('blipLayer');
 const keyModal = document.getElementById('keyModal');
 
-// ---------- Read handoff data from index.html ----------
-const username = sessionStorage.getItem('si_username');
-const noteRaw = sessionStorage.getItem('si_note');
+let uploadedFile = null;
 
-if(!username || !noteRaw){
-  window.location.href = 'index.html';
+function checkReady(){
+  const ready = usernameInput.value.trim().length > 0 && uploadedFile !== null;
+  playBtn.classList.toggle('ready', ready);
 }
 
-const note = noteRaw ? JSON.parse(noteRaw) : null;
-agentNameEl.textContent = username || '—';
-if(note) fileTagEl.textContent = `Decoding: ${note.name}`;
+usernameInput.addEventListener('input', checkReady);
+
+uploadInput.addEventListener('change', () => {
+  if(uploadInput.files.length > 0){
+    uploadedFile = uploadInput.files[0];
+    zoneLabel.textContent = uploadedFile.name;
+    uploadZone.classList.add('hasFile');
+  } else {
+    uploadedFile = null;
+    zoneLabel.textContent = "Tap to upload your teacher's notes";
+    uploadZone.classList.remove('hasFile');
+  }
+  checkReady();
+});
+
+// Convert the uploaded file into a plain-object payload that can be
+// serialized into sessionStorage (File objects themselves can't be stored).
+async function fileToPayload(file){
+  const looksLikeText = file.type.startsWith('text/') || /\.(txt|md)$/i.test(file.name);
+  if(looksLikeText){
+    const text = await file.text();
+    return { name: file.name, mimeType: file.type || 'text/plain', isText: true, content: text };
+  }
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const base64 = dataUrl.split(',')[1];
+  return { name: file.name, mimeType: file.type || 'application/octet-stream', isText: false, content: base64 };
+}
 
 // ---------- Loading flourishes ----------
 const statusMessages = [
@@ -280,30 +173,34 @@ const statusMessages = [
   'Waking up the radar operator...',
   'Briefing the alien scouts...',
   'Polishing the laser cannons...',
-  'Decoding your teacher\'s secrets...',
+  "Decoding your teacher's secrets...",
   'Teaching the UFOs their lines...',
   'Double-checking the star map...'
 ];
-// Shuffle so the sequence feels fresh each time (Fisher-Yates).
 for(let i = statusMessages.length - 1; i > 0; i--){
   const j = Math.floor(Math.random() * (i + 1));
   [statusMessages[i], statusMessages[j]] = [statusMessages[j], statusMessages[i]];
 }
-loadingStatus.textContent = statusMessages[0];
 let statusIdx = 0;
-const statusInterval = setInterval(() => {
-  statusIdx = (statusIdx + 1) % statusMessages.length;
-  loadingStatus.textContent = statusMessages[statusIdx];
-}, 1700);
+let statusInterval = null;
+let blipInterval = null;
 
-const blipInterval = setInterval(() => {
-  const blip = document.createElement('div');
-  blip.className = 'radarBlip';
-  blip.style.left = (20 + Math.random() * 60) + '%';
-  blip.style.top = (20 + Math.random() * 60) + '%';
-  blipLayer.appendChild(blip);
-  setTimeout(() => blip.remove(), 1600);
-}, 500);
+function startLoadingFlourishes(){
+  loadingStatus.textContent = statusMessages[0];
+  statusIdx = 0;
+  statusInterval = setInterval(() => {
+    statusIdx = (statusIdx + 1) % statusMessages.length;
+    loadingStatus.textContent = statusMessages[statusIdx];
+  }, 1700);
+  blipInterval = setInterval(() => {
+    const blip = document.createElement('div');
+    blip.className = 'radarBlip';
+    blip.style.left = (20 + Math.random() * 60) + '%';
+    blip.style.top = (20 + Math.random() * 60) + '%';
+    blipLayer.appendChild(blip);
+    setTimeout(() => blip.remove(), 1600);
+  }, 500);
+}
 
 function stopLoadingFlourishes(){
   clearInterval(statusInterval);
@@ -351,7 +248,7 @@ Based ONLY on the attached notes (do not invent information that isn't supported
 - keywords: 5 to 10 key terms from the notes, each with a one-sentence definition in the student's own-language style (simple, clear).
 Keep language encouraging and appropriate for a student.`;
 
-async function callGemini(apiKey){
+async function callGemini(apiKey, note){
   const parts = [{ text: PROMPT }];
   if(note.isText){
     parts.push({ text: "NOTES CONTENT:\n" + note.content });
@@ -385,45 +282,6 @@ async function callGemini(apiKey){
   return JSON.parse(textOut);
 }
 
-function renderResults(learnData){
-  document.getElementById('summaryText').textContent = learnData.summary;
-
-  const list = document.getElementById('highlightList');
-  list.innerHTML = '';
-  learnData.highlights.forEach(h => {
-    const li = document.createElement('li');
-    li.textContent = h;
-    list.appendChild(li);
-  });
-
-  const wrap = document.getElementById('keywordWrap');
-  wrap.innerHTML = '';
-
-  let holder = document.getElementById('keywordDefsHolder');
-  if(holder) holder.remove();
-  holder = document.createElement('div');
-  holder.id = 'keywordDefsHolder';
-
-  learnData.keywords.forEach((kw, i) => {
-    const chip = document.createElement('button');
-    chip.className = 'keywordChip';
-    chip.type = 'button';
-    chip.textContent = kw.term;
-
-    const def = document.createElement('div');
-    def.className = 'keywordDef';
-    def.id = `kwdef-${i}`;
-    def.textContent = kw.definition;
-
-    chip.addEventListener('click', () => def.classList.toggle('open'));
-
-    wrap.appendChild(chip);
-    holder.appendChild(def);
-  });
-
-  wrap.after(holder);
-}
-
 async function runBriefing(){
   const apiKey = getApiKey();
   if(!apiKey){
@@ -431,35 +289,60 @@ async function runBriefing(){
     return;
   }
 
-  loadingView.style.display = 'block';
-  errorView.style.display = 'none';
-  resultView.style.display = 'none';
+  const noteRaw = sessionStorage.getItem('si_note');
+  if(!noteRaw) return;
+  const note = JSON.parse(noteRaw);
+
+  formSection.style.display = 'none';
+  errorSection.style.display = 'none';
+  loadingSection.style.display = 'block';
+  startLoadingFlourishes();
 
   try{
-    const learnData = await callGemini(apiKey);
+    const learnData = await callGemini(apiKey, note);
     sessionStorage.setItem('si_learnData', JSON.stringify(learnData));
     stopLoadingFlourishes();
-    loadingView.style.display = 'none';
-    resultView.style.display = 'block';
-    renderResults(learnData);
+    window.location.href = 'learn.html';
   } catch(err){
     console.error(err);
     stopLoadingFlourishes();
-    loadingView.style.display = 'none';
-    errorView.style.display = 'block';
+    loadingSection.style.display = 'none';
+    errorSection.style.display = 'block';
     document.getElementById('errorMessage').textContent =
       "Transmission failed: " + err.message;
   }
 }
 
-document.getElementById('retryBtn').addEventListener('click', runBriefing);
-
-document.getElementById('launchBtn').addEventListener('click', () => {
-  window.location.href = 'play.html';
+document.getElementById('retryBtn').addEventListener('click', () => {
+  errorSection.style.display = 'none';
+  runBriefing();
 });
 
-// Kick off on page load
-if(note) runBriefing();
+playBtn.addEventListener('click', async () => {
+  const missing = [];
+  if(usernameInput.value.trim().length === 0) missing.push('your callsign');
+  if(uploadedFile === null) missing.push('your notes');
+
+  if(missing.length > 0){
+    status.textContent = `Enter ${missing.join(' and ')} before launching.`;
+    status.style.color = 'var(--red)';
+    return;
+  }
+
+  status.style.color = 'var(--amber)';
+  status.textContent = 'Uploading transmission...';
+  try{
+    const payload = await fileToPayload(uploadedFile);
+    sessionStorage.setItem('si_username', usernameInput.value.trim());
+    sessionStorage.setItem('si_note', JSON.stringify(payload));
+    sessionStorage.removeItem('si_learnData');
+    runBriefing();
+  } catch(err){
+    console.error(err);
+    status.style.color = 'var(--red)';
+    status.textContent = "Couldn't read that file — try a different one.";
+  }
+});
 </script>
 
 </body>
