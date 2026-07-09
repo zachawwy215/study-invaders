@@ -7,6 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="alternate icon" href="assets/favicon.ico">
+<script src="https://js.puter.com/v2/"></script>
 <style>
   #rocketIcon{
     width:44px;
@@ -31,6 +34,24 @@
     0%,100%{ transform:translateY(0); }
     50%{ transform:translateY(-8px); }
   }
+  #loadingSection, #errorSection{ display:none; }
+  #errorSection p{ font-size:18px; color:var(--ink-dim); margin-bottom:20px; text-align:center; }
+
+  .puterNotice{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    font-size:15px;
+    line-height:1.4;
+    color:var(--ink-dim);
+    background:rgba(76,224,210,0.06);
+    border:1px solid var(--panel-edge);
+    border-radius:6px;
+    padding:10px 12px;
+    margin-bottom:18px;
+    text-align:left;
+  }
+  .puterNotice .lockIcon{ font-size:16px; line-height:1.4; }
 </style>
 </head>
 <body>
@@ -54,28 +75,54 @@
       <img class="spriteUfoGood" alt="">
     </div>
 
-    <fieldset>
-      <label for="username">Callsign (your name)</label>
-      <input type="text" id="username" placeholder="e.g. Alex Tan" autocomplete="off">
-    </fieldset>
+    <!-- Upload form -->
+    <div id="formSection">
+      <fieldset>
+        <label for="username">Callsign (your name)</label>
+        <input type="text" id="username" placeholder="e.g. Alex Tan" autocomplete="off">
+      </fieldset>
 
-    <fieldset>
-      <label>Mission notes</label>
-      <div class="uploadZone" id="uploadZone">
-        <input type="file" id="noteUpload" accept=".pdf,.txt,.png,.jpg,.jpeg">
-        <div class="zoneLabel" id="zoneLabel">Tap to upload your teacher's notes</div>
-        <div class="zoneHint">PDF, image, or text file</div>
+      <fieldset>
+        <label>Mission notes</label>
+        <div class="uploadZone" id="uploadZone">
+          <input type="file" id="noteUpload" accept=".pdf,.txt,.png,.jpg,.jpeg">
+          <div class="zoneLabel" id="zoneLabel">Tap to upload your teacher's notes</div>
+          <div class="zoneHint">PDF, image, or text file</div>
+        </div>
+      </fieldset>
+
+      <div class="puterNotice">
+        <span class="lockIcon">🔒</span>
+        <span>One extra step: when you hit Play, a window will pop up asking you to sign in with a free Puter account. That's what powers the AI part — it only takes a few seconds, and you only do it once on this device.</span>
       </div>
-    </fieldset>
 
-    <button id="playBtn" class="btnPrimary">PLAY</button>
-    <div id="status"></div>
+      <button id="playBtn" class="btnPrimary">PLAY</button>
+      <div id="status"></div>
+    </div>
+
+    <!-- Loading state (shown in place of the form once Play is clicked) -->
+    <div id="loadingSection">
+      <div class="radarLoader">
+        <div class="radarSweep"></div>
+        <div id="blipLayer"></div>
+      </div>
+      <div id="loadingStatus" class="loadingStatusText">Getting the spaceship ready...</div>
+    </div>
+
+    <!-- Error state -->
+    <div id="errorSection">
+      <p id="errorMessage">Transmission failed.</p>
+      <button class="btnGhost" id="retryBtn">Try again</button>
+    </div>
+
+    <p class="creditFooter">Made by Computer System Operation &middot; Sarawak Skills Sri Aman</p>
 
   </div>
 </div>
 
 <script src="assets/pixelart.js"></script>
 <script src="assets/starfield.js"></script>
+<script src="assets/ai.js"></script>
 <script>
 const usernameInput = document.getElementById('username');
 const uploadInput = document.getElementById('noteUpload');
@@ -83,6 +130,12 @@ const uploadZone = document.getElementById('uploadZone');
 const zoneLabel = document.getElementById('zoneLabel');
 const playBtn = document.getElementById('playBtn');
 const status = document.getElementById('status');
+
+const formSection = document.getElementById('formSection');
+const loadingSection = document.getElementById('loadingSection');
+const errorSection = document.getElementById('errorSection');
+const loadingStatus = document.getElementById('loadingStatus');
+const blipLayer = document.getElementById('blipLayer');
 
 let uploadedFile = null;
 
@@ -124,18 +177,131 @@ async function fileToPayload(file){
   return { name: file.name, mimeType: file.type || 'application/octet-stream', isText: false, content: base64 };
 }
 
+// ---------- Loading flourishes ----------
+const statusMessages = [
+  'Getting the spaceship ready...',
+  'Tiny crew is loading the ammo...',
+  'Waking up the radar operator...',
+  'Briefing the alien scouts...',
+  'Polishing the laser cannons...',
+  "Decoding your teacher's secrets...",
+  'Teaching the UFOs their lines...',
+  'Double-checking the star map...'
+];
+for(let i = statusMessages.length - 1; i > 0; i--){
+  const j = Math.floor(Math.random() * (i + 1));
+  [statusMessages[i], statusMessages[j]] = [statusMessages[j], statusMessages[i]];
+}
+let statusIdx = 0;
+let statusInterval = null;
+let blipInterval = null;
+
+function startLoadingFlourishes(){
+  loadingStatus.textContent = statusMessages[0];
+  statusIdx = 0;
+  statusInterval = setInterval(() => {
+    statusIdx = (statusIdx + 1) % statusMessages.length;
+    loadingStatus.textContent = statusMessages[statusIdx];
+  }, 1700);
+  blipInterval = setInterval(() => {
+    const blip = document.createElement('div');
+    blip.className = 'radarBlip';
+    blip.style.left = (20 + Math.random() * 60) + '%';
+    blip.style.top = (20 + Math.random() * 60) + '%';
+    blipLayer.appendChild(blip);
+    setTimeout(() => blip.remove(), 1600);
+  }, 500);
+}
+
+function stopLoadingFlourishes(){
+  clearInterval(statusInterval);
+  clearInterval(blipInterval);
+}
+
+// ---------- AI call (via Puter.js — no API key needed) ----------
+const PROMPT = `You are a study assistant helping a student quickly review their teacher's notes before a quiz.
+Based ONLY on the attached notes (do not invent information that isn't supported by them), produce a study briefing.
+
+Respond with ONLY raw JSON (no markdown code fences, no extra commentary before or after) matching exactly this shape:
+{
+  "summary": "a clear 3-5 sentence overview of what the notes cover, written for quick review",
+  "highlights": ["5 to 8 short bullet-point strings capturing the most important facts, definitions, or must-know statements"],
+  "keywords": [{"term": "a key term from the notes", "definition": "a one-sentence, simple definition of that term"}]
+}
+Include 5 to 10 items in keywords. Keep language encouraging and appropriate for a student.`;
+
+async function callAI(note){
+  return await askAI(PROMPT, note);
+}
+
+async function runBriefing(){
+  const noteRaw = sessionStorage.getItem('si_note');
+  if(!noteRaw) return;
+  const note = JSON.parse(noteRaw);
+
+  formSection.style.display = 'none';
+  errorSection.style.display = 'none';
+  loadingSection.style.display = 'block';
+  startLoadingFlourishes();
+
+  try{
+    const learnData = await callAI(note);
+    sessionStorage.setItem('si_learnData', JSON.stringify(learnData));
+    stopLoadingFlourishes();
+    window.location.href = 'learn.html';
+  } catch(err){
+    console.error(err);
+    stopLoadingFlourishes();
+    loadingSection.style.display = 'none';
+    errorSection.style.display = 'block';
+    document.getElementById('errorMessage').textContent =
+      "Transmission failed: " + err.message;
+  }
+}
+
+document.getElementById('retryBtn').addEventListener('click', () => {
+  errorSection.style.display = 'none';
+  runBriefing();
+});
+
 playBtn.addEventListener('click', async () => {
-  if(!playBtn.classList.contains('ready')) return;
+  const missing = [];
+  if(usernameInput.value.trim().length === 0) missing.push('your callsign');
+  if(uploadedFile === null) missing.push('your notes');
+
+  if(missing.length > 0){
+    status.textContent = `Enter ${missing.join(' and ')} before launching.`;
+    status.style.color = 'var(--red)';
+    return;
+  }
+
+  // Trigger Puter sign-in right away, as directly tied to this click as
+  // possible, so the browser doesn't block the popup.
+  try{
+    if(!puter.auth.isSignedIn()){
+      status.style.color = 'var(--amber)';
+      status.textContent = 'Waiting for Puter sign-in...';
+      await puter.auth.signIn();
+    }
+  } catch(err){
+    console.error(err);
+    status.style.color = 'var(--red)';
+    status.textContent = "Sign-in didn't go through — try clicking Play again.";
+    return;
+  }
+
+  status.style.color = 'var(--amber)';
   status.textContent = 'Uploading transmission...';
   try{
     const payload = await fileToPayload(uploadedFile);
     sessionStorage.setItem('si_username', usernameInput.value.trim());
     sessionStorage.setItem('si_note', JSON.stringify(payload));
-    // Clear any stale learn data from a previous note before heading to Learn.
     sessionStorage.removeItem('si_learnData');
-    window.location.href = 'learn.html';
+    sessionStorage.removeItem('si_quizResults');
+    runBriefing();
   } catch(err){
     console.error(err);
+    status.style.color = 'var(--red)';
     status.textContent = "Couldn't read that file — try a different one.";
   }
 });
