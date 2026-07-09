@@ -40,88 +40,49 @@
     line-height:1.4;
     color:var(--ink);
     min-height:58px;
-    margin-bottom:18px;
+    margin-bottom:10px;
     padding:0 4px;
   }
+  .controlHint{
+    text-align:center;
+    font-size:14px;
+    color:var(--ink-dim);
+    opacity:0.75;
+    margin-bottom:10px;
+    letter-spacing:0.5px;
+  }
 
-  /* ---------- Arena (UFOs + rocket + lasers) ---------- */
+  /* ---------- Game canvas ---------- */
   .arena{
     position:relative;
-    min-height:340px;
-  }
-  .ufoField{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:14px;
-    padding:0 4px;
-  }
-  .ufoOption{
-    background:var(--panel);
+    width:100%;
+    height:380px;
     border:2px solid var(--panel-edge);
     border-radius:10px;
-    padding:10px 8px 12px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:6px;
-    cursor:pointer;
-    font-family:'VT323', monospace;
-    color:var(--ink);
-    animation:ufoBob 3s ease-in-out infinite;
-    transition:border-color 0.15s, transform 0.1s;
+    overflow:hidden;
+    background:rgba(10,11,30,0.35);
+    cursor:crosshair;
+    touch-action:none;
   }
-  .ufoOption:hover{ border-color:var(--cyan); }
-  .ufoOption:active{ transform:scale(0.97); }
-  .ufoOption img{ width:52px; height:auto; }
-  .ufoOption span{ font-size:16px; line-height:1.25; text-align:center; }
-  .ufoOption:nth-child(1){ animation-delay:0s; }
-  .ufoOption:nth-child(2){ animation-delay:0.4s; }
-  .ufoOption:nth-child(3){ animation-delay:0.8s; }
-  .ufoOption:nth-child(4){ animation-delay:1.2s; }
-  @keyframes ufoBob{
-    0%,100%{ transform:translateY(0); }
-    50%{ transform:translateY(-7px); }
+  #gameCanvas{
+    position:absolute;
+    inset:0;
+    display:block;
   }
-  .ufoOption.correctFlash{
-    border-color:var(--cyan);
-    box-shadow:0 0 18px rgba(76,224,210,0.6);
-    animation:none;
-  }
-  .ufoOption.wrongFlash{
-    border-color:var(--red);
-    box-shadow:0 0 18px rgba(255,84,112,0.6);
-    animation:shake 0.4s;
-  }
-  @keyframes shake{
-    0%,100%{ transform:translateX(0); }
-    25%{ transform:translateX(-6px); }
-    75%{ transform:translateX(6px); }
-  }
-  .ufoOption[disabled]{ cursor:default; pointer-events:none; }
-
-  .rocketDock{
-    display:flex;
-    justify-content:center;
-    margin-top:18px;
-  }
-  .rocketDock img{
-    width:40px;
-    height:auto;
-    filter:drop-shadow(0 0 6px rgba(76,224,210,0.5));
-  }
-
-  #laserLayer{
+  #ufoLabels{
     position:absolute;
     inset:0;
     pointer-events:none;
   }
-  .laserBeam{
+  .ufoLabel{
     position:absolute;
-    height:3px;
-    background:linear-gradient(90deg, var(--cyan), transparent);
-    box-shadow:0 0 8px rgba(76,224,210,0.9);
-    transform-origin:0 50%;
-    border-radius:2px;
+    width:120px;
+    margin-left:-60px;
+    text-align:center;
+    font-size:14px;
+    line-height:1.2;
+    color:var(--ink);
+    text-shadow:0 1px 3px rgba(0,0,0,0.8);
   }
 
   .feedbackBanner{
@@ -183,14 +144,11 @@
       </div>
       <div class="questionCounter" id="questionCounter">Question 1 / 8</div>
       <div class="questionText" id="questionText"></div>
+      <div class="controlHint">Move: A/D or mouse &middot; Shoot: Space or click</div>
 
       <div class="arena" id="arena">
-        <div class="ufoField" id="ufoField"></div>
-        <div id="laserLayer"></div>
-      </div>
-
-      <div class="rocketDock">
-        <img class="spriteRocket" id="playerRocket" alt="">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ufoLabels"></div>
       </div>
 
       <div class="feedbackBanner" id="feedbackBanner"></div>
@@ -236,10 +194,10 @@ const livesRow = document.getElementById('livesRow');
 const scoreVal = document.getElementById('scoreVal');
 const questionCounter = document.getElementById('questionCounter');
 const questionText = document.getElementById('questionText');
-const ufoField = document.getElementById('ufoField');
 const arena = document.getElementById('arena');
-const laserLayer = document.getElementById('laserLayer');
-const playerRocket = document.getElementById('playerRocket');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const ufoLabels = document.getElementById('ufoLabels');
 const feedbackBanner = document.getElementById('feedbackBanner');
 
 // ---------- Loading flourishes ----------
@@ -301,7 +259,7 @@ Respond with ONLY raw JSON (no markdown code fences, no commentary) — a JSON a
     "subtopic": "one of the exact subtopic strings from the list above"
   }
 ]
-Make exactly one option correct per question (correctIndex is its 0-based position). Keep questions clear, options plausible but unambiguous, and language appropriate for a student.`;
+Make exactly one option correct per question (correctIndex is its 0-based position). Keep questions clear, options plausible but unambiguous, and language appropriate for a student. Keep each option short — under 6 words — since they'll be displayed on small UFOs.`;
 }
 
 function validateQuiz(raw){
@@ -328,7 +286,8 @@ let currentIndex = 0;
 let score = 0;
 let lives = 3;
 let resultsLog = [];
-let answering = false;
+let resolved = false;   // true while a hit is being resolved (feedback showing, no new hits/fire)
+let gameActive = false; // true only while the canvas loop should run
 
 const CORRECT_LINES = ["Yay! Thank you, Agent!", "Nailed it!", "The good UFOs cheer!", "Correct — Earth is safe a little longer!"];
 const WRONG_LINES = ["Ha! Wrong! Time to invade Earth!", "Oof, that one got away.", "The bad UFO cackles...", "Not quite, Agent."];
@@ -345,100 +304,6 @@ function renderLives(){
     livesRow.appendChild(img);
   }
 }
-
-function showFeedback(text, kind){
-  feedbackBanner.textContent = text;
-  feedbackBanner.className = 'feedbackBanner show ' + kind;
-}
-function hideFeedback(){
-  feedbackBanner.className = 'feedbackBanner';
-}
-
-function fireLaser(targetEl){
-  const arenaRect = arena.getBoundingClientRect();
-  const rocketRect = playerRocket.getBoundingClientRect();
-  const targetRect = targetEl.getBoundingClientRect();
-
-  const x1 = rocketRect.left + rocketRect.width / 2 - arenaRect.left;
-  const y1 = rocketRect.top - arenaRect.top + arenaRect.height + 30; // rocket sits below arena
-  const x2 = targetRect.left + targetRect.width / 2 - arenaRect.left;
-  const y2 = targetRect.top + targetRect.height / 2 - arenaRect.top;
-
-  const dx = x2 - x1, dy = y2 - y1;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-
-  const laser = document.createElement('div');
-  laser.className = 'laserBeam';
-  laser.style.left = x1 + 'px';
-  laser.style.top = y1 + 'px';
-  laser.style.width = dist + 'px';
-  laser.style.transform = `rotate(${angle}deg)`;
-  laserLayer.appendChild(laser);
-  setTimeout(() => laser.remove(), 300);
-}
-
-function renderQuestion(){
-  if(currentIndex >= quiz.length){ finishGame(true); return; }
-  const q = quiz[currentIndex];
-  questionCounter.textContent = `Question ${currentIndex + 1} / ${quiz.length}`;
-  questionText.textContent = q.question;
-  hideFeedback();
-
-  ufoField.innerHTML = '';
-  q.options.forEach((opt, i) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'ufoOption';
-    const img = document.createElement('img');
-    img.src = pixelSprite(SPRITES.ufo.grid, SPRITES.ufo.neutralPalette, 4);
-    img.alt = '';
-    const span = document.createElement('span');
-    span.textContent = opt;
-    btn.appendChild(img);
-    btn.appendChild(span);
-    btn.addEventListener('click', () => handleAnswer(i, btn));
-    ufoField.appendChild(btn);
-  });
-
-  answering = false;
-}
-
-function handleAnswer(selectedIndex, btnEl){
-  if(answering) return;
-  answering = true;
-  Array.from(ufoField.children).forEach(el => el.disabled = true);
-
-  const q = quiz[currentIndex];
-  const correct = selectedIndex === q.correctIndex;
-  fireLaser(btnEl);
-
-  setTimeout(() => {
-    if(correct){
-      score += 10;
-      scoreVal.textContent = score;
-      btnEl.classList.add('correctFlash');
-      showFeedback(pickRandom(CORRECT_LINES), 'good');
-      resultsLog.push({ subtopic: q.subtopic, correct: true });
-    } else {
-      lives--;
-      renderLivesLoss();
-      btnEl.classList.add('wrongFlash');
-      const correctBtn = ufoField.children[q.correctIndex];
-      if(correctBtn) correctBtn.classList.add('correctFlash');
-      showFeedback(`${pickRandom(WRONG_LINES)} The right answer was: "${q.options[q.correctIndex]}"`, 'bad');
-      resultsLog.push({ subtopic: q.subtopic, correct: false });
-    }
-
-    const delay = correct ? 1300 : 2400;
-    setTimeout(() => {
-      currentIndex++;
-      if(lives <= 0){ finishGame(false); }
-      else { renderQuestion(); }
-    }, delay);
-  }, 350);
-}
-
 function renderLivesLoss(){
   const icons = livesRow.querySelectorAll('.lifeIcon');
   const el = icons[lives]; // lives already decremented — this is the rightmost remaining
@@ -448,7 +313,256 @@ function renderLivesLoss(){
   }
 }
 
-function finishGame(completed){
+function showFeedback(text, kind){
+  feedbackBanner.textContent = text;
+  feedbackBanner.className = 'feedbackBanner show ' + kind;
+}
+function hideFeedback(){
+  feedbackBanner.className = 'feedbackBanner';
+}
+
+// ==========================================================
+//  CANVAS SHOOTER ENGINE
+// ==========================================================
+let CW = 0, CH = 0;
+
+function resizeCanvas(){
+  const rect = arena.getBoundingClientRect();
+  CW = Math.max(280, Math.floor(rect.width));
+  CH = Math.floor(rect.height);
+  canvas.width = CW;
+  canvas.height = CH;
+  canvas.style.width = CW + 'px';
+  canvas.style.height = CH + 'px';
+  if(ship) ship.y = CH - 34;
+}
+window.addEventListener('resize', () => { if(gameActive) resizeCanvas(); });
+
+// ---- Ship ----
+let ship = { x: 0, y: 0, w: 30, h: 42, speed: 300 };
+
+function resetShip(){
+  ship.x = CW / 2;
+  ship.y = CH - 34;
+}
+
+// ---- Input ----
+const keys = { left: false, right: false };
+let mouseX = null;
+
+function onKeyDown(e){
+  if(!gameActive) return;
+  if(e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.left = true;
+  if(e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.right = true;
+  if(e.code === 'Space'){ e.preventDefault(); tryFire(); }
+}
+function onKeyUp(e){
+  if(e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.left = false;
+  if(e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.right = false;
+}
+document.addEventListener('keydown', onKeyDown);
+document.addEventListener('keyup', onKeyUp);
+
+window.addEventListener('mousemove', (e) => {
+  if(!gameActive) return;
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+});
+canvas.addEventListener('click', () => tryFire());
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.touches[0].clientX - rect.left;
+  tryFire();
+}, { passive: false });
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.touches[0].clientX - rect.left;
+}, { passive: false });
+
+// ---- Projectiles ----
+let projectiles = [];
+const PROJECTILE_SPEED = 460; // px/sec
+const FIRE_COOLDOWN = 280;    // ms
+let lastFire = 0;
+
+function tryFire(){
+  if(!gameActive || resolved) return;
+  const now = performance.now();
+  if(now - lastFire < FIRE_COOLDOWN) return;
+  lastFire = now;
+  projectiles.push({ x: ship.x, y: ship.y - ship.h / 2 });
+}
+
+// ---- UFOs ----
+let ufos = [];
+
+function spawnUfos(q){
+  ufos = [];
+  ufoLabels.innerHTML = '';
+  const cols = 4;
+  const margin = 55;
+  const usable = Math.max(100, CW - margin * 2);
+
+  for(let i = 0; i < cols; i++){
+    const homeX = margin + (usable * (i + 0.5)) / cols;
+    const ufo = {
+      homeX, x: homeX, y: 66, phase: Math.random() * Math.PI * 2,
+      option: q.options[i], isCorrect: i === q.correctIndex,
+      subtopic: q.subtopic, alive: true, resultState: null // null | 'correct' | 'wrong'
+    };
+    const label = document.createElement('div');
+    label.className = 'ufoLabel';
+    label.textContent = q.options[i];
+    ufoLabels.appendChild(label);
+    ufo.labelEl = label;
+    ufos.push(ufo);
+  }
+}
+
+function drawPixelGrid(grid, palette, cx, cy, pxSize){
+  const rows = grid.length, cols = grid[0].length;
+  const w = cols * pxSize, h = rows * pxSize;
+  const startX = cx - w / 2, startY = cy - h / 2;
+  for(let y = 0; y < rows; y++){
+    for(let x = 0; x < cols; x++){
+      const ch = grid[y][x];
+      if(ch === '.') continue;
+      ctx.fillStyle = palette[ch];
+      ctx.fillRect(startX + x * pxSize, startY + y * pxSize, pxSize, pxSize);
+    }
+  }
+}
+
+function resolveHit(hitUfo){
+  resolved = true;
+  const q = quiz[currentIndex];
+  const correct = hitUfo.isCorrect;
+
+  hitUfo.resultState = correct ? 'correct' : 'wrong';
+  if(!correct){
+    const correctUfo = ufos.find(u => u.isCorrect);
+    if(correctUfo) correctUfo.resultState = 'correct';
+  }
+
+  if(correct){
+    score += 10;
+    scoreVal.textContent = score;
+    showFeedback(pickRandom(CORRECT_LINES), 'good');
+    resultsLog.push({ subtopic: q.subtopic, correct: true });
+  } else {
+    lives--;
+    renderLivesLoss();
+    showFeedback(`${pickRandom(WRONG_LINES)} The right answer was: "${q.options[q.correctIndex]}"`, 'bad');
+    resultsLog.push({ subtopic: q.subtopic, correct: false });
+  }
+
+  const delay = correct ? 1300 : 2400;
+  setTimeout(() => {
+    currentIndex++;
+    if(lives <= 0){ endMission(false); }
+    else { advanceToNextQuestion(); }
+  }, delay);
+}
+
+function advanceToNextQuestion(){
+  hideFeedback();
+  if(currentIndex >= quiz.length){ endMission(true); return; }
+  const q = quiz[currentIndex];
+  questionCounter.textContent = `Question ${currentIndex + 1} / ${quiz.length}`;
+  questionText.textContent = q.question;
+  projectiles = [];
+  resolved = false;
+  spawnUfos(q);
+}
+
+// ---- Loop ----
+let lastTime = 0;
+function loop(now){
+  if(!gameActive) return;
+  const dt = Math.min(0.05, (now - lastTime) / 1000 || 0);
+  lastTime = now;
+  update(dt, now);
+  render();
+  requestAnimationFrame(loop);
+}
+
+function update(dt, now){
+  // Ship movement — WASD/arrows take priority; otherwise follow the mouse.
+  if(keys.left) ship.x -= ship.speed * dt;
+  if(keys.right) ship.x += ship.speed * dt;
+  if(!keys.left && !keys.right && mouseX !== null){
+    ship.x += (mouseX - ship.x) * Math.min(1, dt * 8);
+  }
+  ship.x = Math.max(ship.w / 2 + 4, Math.min(CW - ship.w / 2 - 4, ship.x));
+
+  // UFO drift (frozen once the question is resolved, for readability)
+  if(!resolved){
+    const t = now / 1000;
+    ufos.forEach(u => {
+      if(u.alive) u.x = u.homeX + Math.sin(t * 0.8 + u.phase) * 34;
+    });
+  }
+  ufos.forEach(u => {
+    u.labelEl.style.left = u.x + 'px';
+    u.labelEl.style.top = (u.y + 22) + 'px';
+  });
+
+  // Projectiles
+  projectiles.forEach(p => p.y -= PROJECTILE_SPEED * dt);
+  projectiles = projectiles.filter(p => p.y > -20);
+
+  // Collisions
+  if(!resolved){
+    outer:
+    for(const p of projectiles){
+      for(const u of ufos){
+        if(!u.alive) continue;
+        if(Math.abs(p.x - u.x) < 26 && Math.abs(p.y - u.y) < 20){
+          p.y = -9999;
+          resolveHit(u);
+          break outer;
+        }
+      }
+    }
+    projectiles = projectiles.filter(p => p.y > -999);
+  }
+}
+
+function render(){
+  ctx.clearRect(0, 0, CW, CH);
+
+  // Projectiles
+  projectiles.forEach(p => {
+    ctx.fillStyle = '#4ce0d2';
+    ctx.shadowColor = '#4ce0d2';
+    ctx.shadowBlur = 8;
+    ctx.fillRect(p.x - 2, p.y - 8, 4, 12);
+    ctx.shadowBlur = 0;
+  });
+
+  // UFOs
+  ufos.forEach(u => {
+    let palette = SPRITES.ufo.neutralPalette;
+    if(u.resultState === 'correct') palette = SPRITES.ufo.goodPalette;
+    if(u.resultState === 'wrong') palette = SPRITES.ufo.badPalette;
+
+    if(u.resultState){
+      ctx.beginPath();
+      ctx.fillStyle = u.resultState === 'correct' ? 'rgba(76,224,210,0.25)' : 'rgba(255,84,112,0.25)';
+      ctx.arc(u.x, u.y, 30, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    drawPixelGrid(SPRITES.ufo.grid, palette, u.x, u.y, 4);
+  });
+
+  // Ship
+  drawPixelGrid(SPRITES.rocket.grid, SPRITES.rocket.palette, ship.x, ship.y, 4);
+}
+
+function endMission(completed){
+  gameActive = false;
   gameView.style.display = 'none';
   const correctCount = resultsLog.filter(r => r.correct).length;
   sessionStorage.setItem('si_quizResults', JSON.stringify({
@@ -468,16 +582,6 @@ document.getElementById('toResultsBtn').addEventListener('click', () => {
   window.location.href = 'results.html';
 });
 
-// Keyboard support: number keys 1-4 select the matching UFO option.
-document.addEventListener('keydown', (e) => {
-  if(gameView.style.display !== 'block' || answering) return;
-  const num = parseInt(e.key, 10);
-  if(num >= 1 && num <= 4){
-    const btn = ufoField.children[num - 1];
-    if(btn) btn.click();
-  }
-});
-
 // ---------- Boot ----------
 async function startMission(){
   loadingView.style.display = 'block';
@@ -491,13 +595,27 @@ async function startMission(){
     stopLoadingFlourishes();
     loadingView.style.display = 'none';
     gameView.style.display = 'block';
+
     score = 0;
     lives = 3;
     currentIndex = 0;
     resultsLog = [];
+    resolved = false;
+    projectiles = [];
     scoreVal.textContent = '0';
     renderLives();
-    renderQuestion();
+
+    resizeCanvas();
+    resetShip();
+
+    const q = quiz[currentIndex];
+    questionCounter.textContent = `Question 1 / ${quiz.length}`;
+    questionText.textContent = q.question;
+    spawnUfos(q);
+
+    gameActive = true;
+    lastTime = performance.now();
+    requestAnimationFrame(loop);
   } catch(err){
     console.error(err);
     stopLoadingFlourishes();
