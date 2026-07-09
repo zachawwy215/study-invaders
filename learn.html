@@ -7,93 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="alternate icon" href="assets/favicon.ico">
 <style>
-  .topBar{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    margin-bottom:18px;
-  }
-  .agentTag{
-    font-size:16px;
-    color:var(--ink-dim);
-    letter-spacing:0.5px;
-  }
-  .agentTag span{ color:var(--cyan); }
-
-  h2{
-    font-family:'Press Start 2P', monospace;
-    font-size:15px;
-    color:var(--cyan);
-    letter-spacing:1px;
-    margin:0 0 4px;
-    text-shadow:0 0 6px rgba(76,224,210,0.5);
-  }
   .fileTag{
     font-size:16px;
     color:var(--ink-dim);
     margin:0 0 26px;
-  }
-
-  /* ---------- Radar loader ---------- */
-  #loadingView{
-    text-align:center;
-    padding:20px 0 8px;
-  }
-  .radar{
-    width:150px;
-    height:150px;
-    margin:0 auto 22px;
-    border-radius:50%;
-    position:relative;
-    background:
-      radial-gradient(circle, rgba(76,224,210,0.06) 0%, transparent 70%),
-      repeating-radial-gradient(circle, transparent 0, transparent 24px, rgba(76,224,210,0.12) 25px);
-    border:2px solid var(--panel-edge);
-    overflow:hidden;
-  }
-  .radarSweep{
-    position:absolute;
-    inset:0;
-    background:conic-gradient(from 0deg, rgba(76,224,210,0.55), transparent 35%);
-    animation:spin 2.2s linear infinite;
-  }
-  .radarBlip{
-    position:absolute;
-    width:6px;
-    height:6px;
-    background:var(--amber);
-    border-radius:50%;
-    box-shadow:0 0 6px rgba(255,209,102,0.9);
-    animation:blipFade 1.6s ease-out forwards;
-  }
-  @keyframes spin{ to{ transform:rotate(360deg); } }
-  @keyframes blipFade{
-    0%{ opacity:0; transform:scale(0.4); }
-    20%{ opacity:1; transform:scale(1); }
-    100%{ opacity:0; transform:scale(1); }
-  }
-  #loadingStatus{
-    font-size:19px;
-    color:var(--amber);
-    min-height:26px;
-  }
-
-  /* ---------- Result cards ---------- */
-  #resultView{ display:none; }
-  .card{
-    background:rgba(10,11,30,0.55);
-    border:2px solid var(--panel-edge);
-    border-radius:8px;
-    padding:16px 18px;
-    margin-bottom:18px;
-  }
-  .cardTitle{
-    font-family:'Press Start 2P', monospace;
-    font-size:12px;
-    letter-spacing:1.5px;
-    color:var(--amber);
-    margin:0 0 12px;
   }
   .summaryText{
     font-size:19px;
@@ -148,29 +68,6 @@
     background:rgba(76,224,210,0.06);
   }
   .keywordDef.open{ display:block; }
-
-  /* ---------- API key modal ---------- */
-  #keyModal{
-    position:fixed;
-    inset:0;
-    z-index:50;
-    background:rgba(10,11,30,0.85);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:24px;
-  }
-  #keyModal .cabinet{ max-width:420px; }
-  #keyModal p{ font-size:17px; color:var(--ink-dim); line-height:1.5; }
-  #keyModal a{ color:var(--cyan); }
-
-  #errorView{
-    display:none;
-    text-align:center;
-    padding:20px 0;
-  }
-  #errorView p{ font-size:18px; color:var(--ink-dim); margin-bottom:20px; }
-
   .bottomRow{
     display:flex;
     gap:12px;
@@ -192,24 +89,8 @@
     </div>
 
     <h2>MISSION BRIEFING</h2>
-    <p class="fileTag" id="fileTag">Decoding transmission...</p>
+    <p class="fileTag" id="fileTag"></p>
 
-    <!-- Loading state -->
-    <div id="loadingView">
-      <div class="radar">
-        <div class="radarSweep"></div>
-        <div id="blipLayer"></div>
-      </div>
-      <div id="loadingStatus">Scanning notes...</div>
-    </div>
-
-    <!-- Error state -->
-    <div id="errorView">
-      <p id="errorMessage">Transmission failed. Signal lost somewhere between here and the mothership.</p>
-      <button class="btnGhost" id="retryBtn">Try again</button>
-    </div>
-
-    <!-- Result state -->
     <div id="resultView">
       <div class="card">
         <p class="cardTitle">SUMMARY</p>
@@ -231,155 +112,35 @@
       </div>
     </div>
 
-  </div>
-</div>
+    <p class="creditFooter">Made by Computer System Operation &middot; Sarawak Skills Sri Aman</p>
 
-<!-- API key setup modal -->
-<div id="keyModal" style="display:none;">
-  <div class="cabinet">
-    <h2 style="margin-bottom:14px;">GEMINI API KEY</h2>
-    <p>Study Invaders needs a Gemini API key to decode your notes. Get a free key from
-      <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>,
-      then paste it below. It's stored only in this browser.</p>
-    <fieldset>
-      <label for="apiKeyInput">API key</label>
-      <input type="password" id="apiKeyInput" placeholder="AIza...">
-    </fieldset>
-    <button class="btnPrimary ready" id="saveKeyBtn">SAVE &amp; CONTINUE</button>
   </div>
 </div>
 
 <script src="assets/pixelart.js"></script>
 <script src="assets/starfield.js"></script>
 <script>
-const agentNameEl = document.getElementById('agentName');
-const fileTagEl = document.getElementById('fileTag');
-const loadingView = document.getElementById('loadingView');
-const errorView = document.getElementById('errorView');
-const resultView = document.getElementById('resultView');
-const loadingStatus = document.getElementById('loadingStatus');
-const blipLayer = document.getElementById('blipLayer');
-const keyModal = document.getElementById('keyModal');
-
-// ---------- Read handoff data from index.html ----------
+// This page only ever displays data that index.html already fetched from
+// Gemini. If that data isn't present, there's nothing to show — send the
+// student back to start a mission properly.
 const username = sessionStorage.getItem('si_username');
 const noteRaw = sessionStorage.getItem('si_note');
+const learnDataRaw = sessionStorage.getItem('si_learnData');
 
-if(!username || !noteRaw){
+if(!username || !noteRaw || !learnDataRaw){
   window.location.href = 'index.html';
 }
 
 const note = noteRaw ? JSON.parse(noteRaw) : null;
-agentNameEl.textContent = username || '—';
-if(note) fileTagEl.textContent = `Decoding: ${note.name}`;
+const learnData = learnDataRaw ? JSON.parse(learnDataRaw) : null;
 
-// ---------- Loading flourishes ----------
-const statusMessages = [
-  'Scanning notes...',
-  'Extracting key intel...',
-  'Cross-referencing subtopics...',
-  'Compiling briefing...'
-];
-let statusIdx = 0;
-const statusInterval = setInterval(() => {
-  statusIdx = (statusIdx + 1) % statusMessages.length;
-  loadingStatus.textContent = statusMessages[statusIdx];
-}, 1700);
+document.getElementById('agentName').textContent = username || '—';
+if(note) document.getElementById('fileTag').textContent = `Source: ${note.name}`;
 
-const blipInterval = setInterval(() => {
-  const blip = document.createElement('div');
-  blip.className = 'radarBlip';
-  blip.style.left = (20 + Math.random() * 60) + '%';
-  blip.style.top = (20 + Math.random() * 60) + '%';
-  blipLayer.appendChild(blip);
-  setTimeout(() => blip.remove(), 1600);
-}, 500);
-
-function stopLoadingFlourishes(){
-  clearInterval(statusInterval);
-  clearInterval(blipInterval);
-}
-
-// ---------- API key handling ----------
-function getApiKey(){
-  return localStorage.getItem('si_geminiKey');
-}
-
-document.getElementById('saveKeyBtn').addEventListener('click', () => {
-  const val = document.getElementById('apiKeyInput').value.trim();
-  if(!val) return;
-  localStorage.setItem('si_geminiKey', val);
-  keyModal.style.display = 'none';
-  runBriefing();
-});
-
-// ---------- Gemini call ----------
-const RESPONSE_SCHEMA = {
-  type: "object",
-  properties: {
-    summary: { type: "string" },
-    highlights: { type: "array", items: { type: "string" } },
-    keywords: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          term: { type: "string" },
-          definition: { type: "string" }
-        },
-        required: ["term", "definition"]
-      }
-    }
-  },
-  required: ["summary", "highlights", "keywords"]
-};
-
-const PROMPT = `You are a study assistant helping a student quickly review their teacher's notes before a quiz.
-Based ONLY on the attached notes (do not invent information that isn't supported by them), produce:
-- summary: a clear 3-5 sentence overview of what the notes cover, written for quick review.
-- highlights: 5 to 8 short bullet-point strings capturing the most important facts, definitions, or must-know statements.
-- keywords: 5 to 10 key terms from the notes, each with a one-sentence definition in the student's own-language style (simple, clear).
-Keep language encouraging and appropriate for a student.`;
-
-async function callGemini(apiKey){
-  const parts = [{ text: PROMPT }];
-  if(note.isText){
-    parts.push({ text: "NOTES CONTENT:\n" + note.content });
-  } else {
-    parts.push({ inline_data: { mime_type: note.mimeType, data: note.content } });
-  }
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: RESPONSE_SCHEMA
-        }
-      })
-    }
-  );
-
-  if(!res.ok){
-    const errText = await res.text();
-    throw new Error(`Gemini API error (${res.status}): ${errText}`);
-  }
-
-  const data = await res.json();
-  const textOut = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if(!textOut) throw new Error('No content returned from Gemini.');
-  return JSON.parse(textOut);
-}
-
-function renderResults(learnData){
+if(learnData){
   document.getElementById('summaryText').textContent = learnData.summary;
 
   const list = document.getElementById('highlightList');
-  list.innerHTML = '';
   learnData.highlights.forEach(h => {
     const li = document.createElement('li');
     li.textContent = h;
@@ -387,11 +148,7 @@ function renderResults(learnData){
   });
 
   const wrap = document.getElementById('keywordWrap');
-  wrap.innerHTML = '';
-
-  let holder = document.getElementById('keywordDefsHolder');
-  if(holder) holder.remove();
-  holder = document.createElement('div');
+  const holder = document.createElement('div');
   holder.id = 'keywordDefsHolder';
 
   learnData.keywords.forEach((kw, i) => {
@@ -414,42 +171,9 @@ function renderResults(learnData){
   wrap.after(holder);
 }
 
-async function runBriefing(){
-  const apiKey = getApiKey();
-  if(!apiKey){
-    keyModal.style.display = 'flex';
-    return;
-  }
-
-  loadingView.style.display = 'block';
-  errorView.style.display = 'none';
-  resultView.style.display = 'none';
-
-  try{
-    const learnData = await callGemini(apiKey);
-    sessionStorage.setItem('si_learnData', JSON.stringify(learnData));
-    stopLoadingFlourishes();
-    loadingView.style.display = 'none';
-    resultView.style.display = 'block';
-    renderResults(learnData);
-  } catch(err){
-    console.error(err);
-    stopLoadingFlourishes();
-    loadingView.style.display = 'none';
-    errorView.style.display = 'block';
-    document.getElementById('errorMessage').textContent =
-      "Transmission failed: " + err.message;
-  }
-}
-
-document.getElementById('retryBtn').addEventListener('click', runBriefing);
-
 document.getElementById('launchBtn').addEventListener('click', () => {
   window.location.href = 'play.html';
 });
-
-// Kick off on page load
-if(note) runBriefing();
 </script>
 
 </body>
