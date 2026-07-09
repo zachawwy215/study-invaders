@@ -196,14 +196,12 @@ input[type="password"]:focus,
   background:var(--ink-dim);
   color:var(--void);
   opacity:0.45;
-  pointer-events:none;
   transition:opacity 0.2s, transform 0.1s, background 0.2s, box-shadow 0.2s;
 }
 
 .btnPrimary.ready{
   background:var(--cyan);
   opacity:1;
-  pointer-events:auto;
   box-shadow:0 0 20px rgba(76,224,210,0.45);
 }
 
@@ -229,6 +227,113 @@ input[type="password"]:focus,
   font-size:16px;
   min-height:20px;
   color:var(--amber);
+}
+
+/* ---------- Radar loader (reusable across pages) ---------- */
+.radarLoader{
+  width:150px;
+  height:150px;
+  margin:0 auto 22px;
+  border-radius:50%;
+  position:relative;
+  background:
+    radial-gradient(circle, rgba(76,224,210,0.06) 0%, transparent 70%),
+    repeating-radial-gradient(circle, transparent 0, transparent 24px, rgba(76,224,210,0.12) 25px);
+  border:2px solid var(--panel-edge);
+  overflow:hidden;
+}
+.radarLoader .radarSweep{
+  position:absolute;
+  inset:0;
+  background:conic-gradient(from 0deg, rgba(76,224,210,0.55), transparent 35%);
+  animation:radarSpin 2.2s linear infinite;
+}
+.radarBlip{
+  position:absolute;
+  width:6px;
+  height:6px;
+  background:var(--amber);
+  border-radius:50%;
+  box-shadow:0 0 6px rgba(255,209,102,0.9);
+  animation:blipFade 1.6s ease-out forwards;
+}
+@keyframes radarSpin{ to{ transform:rotate(360deg); } }
+@keyframes blipFade{
+  0%{ opacity:0; transform:scale(0.4); }
+  20%{ opacity:1; transform:scale(1); }
+  100%{ opacity:0; transform:scale(1); }
+}
+.loadingStatusText{
+  font-size:19px;
+  color:var(--amber);
+  min-height:26px;
+  text-align:center;
+}
+
+/* ---------- Modal overlay (reusable across pages) ---------- */
+.modalOverlay{
+  position:fixed;
+  inset:0;
+  z-index:50;
+  background:rgba(10,11,30,0.85);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+}
+.modalOverlay .cabinet{ max-width:420px; }
+.modalOverlay p{ font-size:17px; color:var(--ink-dim); line-height:1.5; }
+.modalOverlay a{ color:var(--cyan); }
+
+/* ---------- Result cards (reusable across pages) ---------- */
+.card{
+  background:rgba(10,11,30,0.55);
+  border:2px solid var(--panel-edge);
+  border-radius:8px;
+  padding:16px 18px;
+  margin-bottom:18px;
+  text-align:left;
+}
+.cardTitle{
+  font-family:'Press Start 2P', monospace;
+  font-size:12px;
+  letter-spacing:1.5px;
+  color:var(--amber);
+  margin:0 0 12px;
+}
+
+/* ---------- Top bar (reusable across pages) ---------- */
+.topBar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:18px;
+}
+.agentTag{
+  font-size:16px;
+  color:var(--ink-dim);
+  letter-spacing:0.5px;
+}
+.agentTag span{ color:var(--cyan); }
+
+h2{
+  font-family:'Press Start 2P', monospace;
+  font-size:15px;
+  color:var(--cyan);
+  letter-spacing:1px;
+  margin:0 0 4px;
+  text-shadow:0 0 6px rgba(76,224,210,0.5);
+}
+
+.creditFooter{
+  margin-top:26px;
+  padding-top:14px;
+  border-top:1px solid var(--panel-edge);
+  text-align:center;
+  font-size:13px;
+  letter-spacing:0.5px;
+  color:var(--ink-dim);
+  opacity:0.7;
 }
 
 @media (prefers-reduced-motion: reduce){
