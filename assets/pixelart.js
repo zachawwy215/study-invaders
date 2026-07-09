@@ -47,8 +47,7 @@ const SPRITES = {
       '...11111...'
     ],
     goodPalette: { '1':'#4ce0d2', '5':'#0a0b1e', '6':'#e9e6f7' },
-    badPalette:  { '1':'#ff5470', '5':'#0a0b1e', '6':'#ffd166' },
-    neutralPalette: { '1':'#9c93c2', '5':'#0a0b1e', '6':'#e9e6f7' }
+    badPalette:  { '1':'#ff5470', '5':'#0a0b1e', '6':'#ffd166' }
   }
 };
 
