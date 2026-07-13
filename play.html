@@ -114,7 +114,7 @@
   <div class="cabinet wide">
 
     <div class="topBar">
-      <span></span>
+      <button class="btnGhost" id="backBtn">&larr; Menu</button>
       <span class="agentTag">Agent: <span id="agentName">—</span></span>
     </div>
     <h2 style="text-align:center;">MISSION: DEFEND</h2>
@@ -356,6 +356,8 @@ function resetShip(){
 // ---- Input ----
 const keys = { left: false, right: false };
 let mouseX = null;
+let lastMouseMoveTime = 0;
+const MOUSE_IDLE_TIMEOUT = 150; // ms — mouse control only applies if recently moved
 
 function onKeyDown(e){
   if(!gameActive) return;
@@ -374,18 +376,21 @@ window.addEventListener('mousemove', (e) => {
   if(!gameActive) return;
   const rect = canvas.getBoundingClientRect();
   mouseX = e.clientX - rect.left;
+  lastMouseMoveTime = performance.now();
 });
 canvas.addEventListener('click', () => tryFire());
 canvas.addEventListener('touchstart', (e) => {
   e.preventDefault();
   const rect = canvas.getBoundingClientRect();
   mouseX = e.touches[0].clientX - rect.left;
+  lastMouseMoveTime = performance.now();
   tryFire();
 }, { passive: false });
 canvas.addEventListener('touchmove', (e) => {
   e.preventDefault();
   const rect = canvas.getBoundingClientRect();
   mouseX = e.touches[0].clientX - rect.left;
+  lastMouseMoveTime = performance.now();
 }, { passive: false });
 
 // ---- Projectiles ----
@@ -577,10 +582,13 @@ function loop(now){
 }
 
 function update(dt, now){
-  // Ship movement — WASD/arrows take priority; otherwise follow the mouse.
+  // Ship movement — WASD/arrows always take priority. Mouse only applies if
+  // it has moved recently (within MOUSE_IDLE_TIMEOUT); a mouse that's just
+  // resting somewhere shouldn't fight against keyboard-only play.
   if(keys.left) ship.x -= ship.speed * dt;
   if(keys.right) ship.x += ship.speed * dt;
-  if(!keys.left && !keys.right && mouseX !== null){
+  const mouseRecentlyActive = mouseX !== null && (now - lastMouseMoveTime) < MOUSE_IDLE_TIMEOUT;
+  if(!keys.left && !keys.right && mouseRecentlyActive){
     ship.x += (mouseX - ship.x) * Math.min(1, dt * 8);
   }
   ship.x = Math.max(ship.w / 2 + 4, Math.min(CW - ship.w / 2 - 4, ship.x));
@@ -662,6 +670,16 @@ function endMission(completed){
     `Score: ${score} — ${correctCount}/${quiz.length} correct`;
 }
 
+document.getElementById('backBtn').addEventListener('click', () => {
+  if(gameActive){
+    if(confirm('Leave this mission? Your progress on this playthrough will be lost.')){
+      window.location.href = 'index.html';
+    }
+  } else {
+    window.location.href = 'index.html';
+  }
+});
+
 document.getElementById('toResultsBtn').addEventListener('click', () => {
   window.location.href = 'results.html';
 });
@@ -705,7 +723,8 @@ async function startMission(){
     stopLoadingFlourishes();
     loadingView.style.display = 'none';
     errorView.style.display = 'block';
-    document.getElementById('errorMessage').textContent = "Mission prep failed: " + err.message;
+    document.getElementById('errorMessage').textContent =
+      "Mission prep failed: " + err.message + " — If this mentions a low balance, try signing out of Puter and signing back in with a different account.";
   }
 }
 
