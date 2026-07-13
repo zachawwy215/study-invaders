@@ -537,12 +537,69 @@ function drawUfo(cx, cy, resultState){
   ctx.fill();
 }
 
+// ---- Explosion effect (particle burst + ring) for the UFO that got shot ----
+let particles = [];
+let explosionRings = [];
+
+function spawnExplosion(x, y, color){
+  const count = 12;
+  for(let i = 0; i < count; i++){
+    const angle = (Math.PI * 2 * i) / count + (Math.random() * 0.5 - 0.25);
+    const speed = 90 + Math.random() * 130;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 0.45 + Math.random() * 0.2,
+      maxLife: 0.65,
+      color
+    });
+  }
+  explosionRings.push({ x, y, life: 0.35, maxLife: 0.35, color });
+}
+
+function updateExplosions(dt){
+  particles.forEach(p => {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 160 * dt; // slight gravity for a nicer arc
+    p.life -= dt;
+  });
+  particles = particles.filter(p => p.life > 0);
+
+  explosionRings.forEach(r => r.life -= dt);
+  explosionRings = explosionRings.filter(r => r.life > 0);
+}
+
+function renderExplosions(){
+  particles.forEach(p => {
+    ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  });
+  explosionRings.forEach(r => {
+    const t = 1 - r.life / r.maxLife;
+    ctx.globalAlpha = Math.max(0, 1 - t);
+    ctx.strokeStyle = r.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, 4 + t * 32, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+}
+
 function resolveHit(hitUfo){
   resolved = true;
   const q = quiz[currentIndex];
   const correct = hitUfo.isCorrect;
 
-  hitUfo.resultState = correct ? 'correct' : 'wrong';
+  // The shot UFO explodes on the spot and is immediately removed — it
+  // doesn't join the others in the sweep-away.
+  spawnExplosion(hitUfo.x, hitUfo.y, correct ? '#4ce0d2' : '#ff5470');
+  if(hitUfo.labelEl) hitUfo.labelEl.remove();
+  ufos = ufos.filter(u => u !== hitUfo);
+
   if(!correct){
     const correctUfo = ufos.find(u => u.isCorrect);
     if(correctUfo) correctUfo.resultState = 'correct';
@@ -652,6 +709,8 @@ function update(dt, now){
     cb();
   }
 
+  updateExplosions(dt);
+
   // Background stars drift slowly downward
   gameStars.forEach(s => {
     s.y += s.speed * dt;
@@ -713,6 +772,9 @@ function render(){
 
   // Ship
   drawShip(ship.x, ship.y);
+
+  // Explosion effects (drawn on top for maximum pop)
+  renderExplosions();
 }
 
 function endMission(completed){
