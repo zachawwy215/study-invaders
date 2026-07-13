@@ -93,7 +93,7 @@
 
       <div class="puterNotice">
         <span class="lockIcon">🔒</span>
-        <span>One extra step: when you hit Play, a window will pop up asking you to sign in with a free Puter account. That's what powers the AI part — it only takes a few seconds, and you only do it once on this device.</span>
+        <span>One extra step: when you hit Play, a window will pop up asking you to sign in with a free Puter account. That's what powers the AI part — it only takes a few seconds, and you only do it once on this device. If Puter ever says your account is low on balance, just sign out and sign back in with a different email to get a fresh account.</span>
       </div>
 
       <button id="playBtn" class="btnPrimary">PLAY</button>
@@ -255,7 +255,7 @@ async function runBriefing(){
     loadingSection.style.display = 'none';
     errorSection.style.display = 'block';
     document.getElementById('errorMessage').textContent =
-      "Transmission failed: " + err.message;
+      "Transmission failed: " + err.message + " — If this mentions a low balance, try signing out of Puter and signing back in with a different account.";
   }
 }
 
