@@ -11,7 +11,7 @@
 <link rel="alternate icon" href="assets/favicon.ico">
 <script src="https://js.puter.com/v2/"></script>
 <style>
-  #loadingView, #errorView, #gameView, #gameOverView{ display:none; }
+  #difficultyView, #loadingView, #errorView, #gameView, #gameOverView{ display:none; }
   #errorView p{ font-size:18px; color:var(--ink-dim); margin-bottom:20px; text-align:center; }
 
   /* ---------- HUD ---------- */
@@ -23,9 +23,29 @@
     font-size:17px;
   }
   .hudScore{ color:var(--amber); }
-  .livesRow{ display:flex; gap:6px; }
-  .lifeIcon{ width:26px; height:auto; transition:opacity 0.3s, transform 0.3s; }
-  .lifeIcon.lifeLost{ opacity:0; transform:scale(0.3) rotate(20deg); }
+  .livesRow{ display:flex; gap:5px; }
+  .lifeIcon{ width:26px; height:auto; }
+  .lifeIcon.lifeLost{
+    animation:heartExplode 0.5s ease-out forwards;
+    position:relative;
+  }
+  .lifeIcon.lifeLost::after{
+    content:"";
+    position:absolute;
+    inset:-8px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(255,84,112,0.8) 0%, transparent 70%);
+    animation:heartBurst 0.4s ease-out forwards;
+  }
+  @keyframes heartBurst{
+    0%{ transform:scale(0.3); opacity:0.9; }
+    100%{ transform:scale(2.2); opacity:0; }
+  }
+  @keyframes heartExplode{
+    0%{ transform:scale(1) rotate(0deg); filter:brightness(1); opacity:1; }
+    30%{ transform:scale(1.35) rotate(-8deg); filter:brightness(1.6); opacity:1; }
+    100%{ transform:scale(0.2) rotate(25deg); filter:brightness(2); opacity:0; }
+  }
 
   .questionCounter{
     text-align:center;
@@ -104,6 +124,40 @@
   #gameOverView{ text-align:center; padding:20px 0; }
   #gameOverView h2{ margin-bottom:14px; }
   #gameOverView p{ font-size:19px; color:var(--ink-dim); margin-bottom:24px; }
+
+  /* ---------- Difficulty select ---------- */
+  #difficultyView{ padding:6px 0; }
+  .difficultyGrid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  .difficultyCard{
+    background:var(--panel);
+    border:2px solid var(--panel-edge);
+    border-radius:10px;
+    padding:16px 12px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+    font-family:'VT323', monospace;
+    color:var(--ink);
+  }
+  .difficultyCard:hover{ border-color:var(--cyan); transform:translateY(-2px); }
+  .difficultyCard:active{ transform:translateY(0); }
+  .difficultyName{
+    font-family:'Press Start 2P', monospace;
+    font-size:13px;
+    letter-spacing:1px;
+    margin-bottom:8px;
+  }
+  .difficultyCard.easy .difficultyName{ color:var(--cyan); }
+  .difficultyCard.normal .difficultyName{ color:var(--amber); }
+  .difficultyCard.hard .difficultyName{ color:var(--red); }
+  .difficultyCard.endless .difficultyName{ color:#c9a4ff; }
+  .difficultyCard.endless{ border-color:#5a3d8a; }
+  .difficultyCard.endless:hover{ border-color:#c9a4ff; }
+  .difficultyDesc{ font-size:16px; color:var(--ink-dim); }
 </style>
 </head>
 <body>
@@ -119,6 +173,29 @@
       <span class="agentTag">Agent: <span id="agentName">—</span></span>
     </div>
     <h2 style="text-align:center;">MISSION: DEFEND</h2>
+
+    <!-- Difficulty select state -->
+    <div id="difficultyView">
+      <p style="text-align:center; color:var(--ink-dim); font-size:17px; margin:0 0 18px;">Choose your mission difficulty</p>
+      <div class="difficultyGrid">
+        <div class="difficultyCard easy" data-difficulty="easy" data-count="10">
+          <div class="difficultyName">EASY</div>
+          <div class="difficultyDesc">10 questions</div>
+        </div>
+        <div class="difficultyCard normal" data-difficulty="normal" data-count="15">
+          <div class="difficultyName">NORMAL</div>
+          <div class="difficultyDesc">15 questions</div>
+        </div>
+        <div class="difficultyCard hard" data-difficulty="hard" data-count="20">
+          <div class="difficultyName">HARD</div>
+          <div class="difficultyDesc">20 questions</div>
+        </div>
+        <div class="difficultyCard endless" data-difficulty="endless" data-count="30">
+          <div class="difficultyName">ENDLESS</div>
+          <div class="difficultyDesc">Survive as long as you can</div>
+        </div>
+      </div>
+    </div>
 
     <!-- Loading state (quiz generation) -->
     <div id="loadingView" style="text-align:center;">
@@ -185,6 +262,7 @@ const learnData = learnDataRaw ? JSON.parse(learnDataRaw) : null;
 document.getElementById('agentName').textContent = username || '—';
 
 // ---------- Elements ----------
+const difficultyView = document.getElementById('difficultyView');
 const loadingView = document.getElementById('loadingView');
 const errorView = document.getElementById('errorView');
 const gameView = document.getElementById('gameView');
@@ -242,7 +320,8 @@ function stopLoadingFlourishes(){
 }
 
 // ---------- Quiz generation ----------
-const QUESTION_COUNT = 8;
+let QUESTION_COUNT = 10; // set by the difficulty the student picks
+let selectedDifficulty = 'easy';
 
 function buildQuizPrompt(){
   const subtopics = learnData.keywords.map(k => k.term);
@@ -285,7 +364,8 @@ async function generateQuiz(){
 // ---------- Game state ----------
 let currentIndex = 0;
 let score = 0;
-let lives = 3;
+const LIVES_COUNT = 5;
+let lives = LIVES_COUNT;
 let resultsLog = [];
 let resolved = false;   // true while a hit is being resolved (feedback showing, no new hits/fire)
 let gameActive = false; // true only while the canvas loop should run
@@ -297,17 +377,17 @@ function pickRandom(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
 
 function renderLives(){
   livesRow.innerHTML = '';
-  for(let i = 0; i < 3; i++){
+  for(let i = 0; i < LIVES_COUNT; i++){
     if(spritesAvailable){
       const img = document.createElement('img');
-      img.className = 'lifeIcon spriteUfoGood';
+      img.className = 'lifeIcon';
       img.alt = '';
-      img.src = pixelSprite(SPRITES.ufo.grid, SPRITES.ufo.goodPalette, 3);
+      img.src = pixelSprite(SPRITES.heart.grid, SPRITES.heart.palette, 3);
       livesRow.appendChild(img);
     } else {
       const dot = document.createElement('div');
       dot.className = 'lifeIcon';
-      dot.style.cssText = 'width:20px;height:20px;border-radius:50%;background:var(--cyan);display:inline-block;';
+      dot.style.cssText = 'width:20px;height:20px;border-radius:50%;background:var(--red);display:inline-block;';
       livesRow.appendChild(dot);
     }
   }
@@ -317,7 +397,7 @@ function renderLivesLoss(){
   const el = icons[lives]; // lives already decremented — this is the rightmost remaining
   if(el){
     el.classList.add('lifeLost');
-    setTimeout(() => el.remove(), 400);
+    setTimeout(() => el.remove(), 520);
   }
 }
 
@@ -488,7 +568,8 @@ const spritesAvailable = (
   typeof pixelSprite === 'function' &&
   SPRITES.rocket && SPRITES.rocket.grid && SPRITES.rocket.palette &&
   SPRITES.ufo && SPRITES.ufo.grid &&
-  SPRITES.ufo.goodPalette && SPRITES.ufo.badPalette && SPRITES.ufo.neutralPalette
+  SPRITES.ufo.goodPalette && SPRITES.ufo.badPalette && SPRITES.ufo.neutralPalette &&
+  SPRITES.heart && SPRITES.heart.grid && SPRITES.heart.palette
 );
 if(!spritesAvailable){
   console.warn('Study Invaders: assets/pixelart.js is missing or out of date — using fallback shapes. Try re-uploading the latest assets/pixelart.js.');
@@ -810,6 +891,7 @@ document.getElementById('toResultsBtn').addEventListener('click', () => {
 
 // ---------- Boot ----------
 async function startMission(){
+  difficultyView.style.display = 'none';
   loadingView.style.display = 'block';
   errorView.style.display = 'none';
   gameView.style.display = 'none';
@@ -823,7 +905,7 @@ async function startMission(){
     gameView.style.display = 'block';
 
     score = 0;
-    lives = 3;
+    lives = LIVES_COUNT;
     currentIndex = 0;
     resultsLog = [];
     resolved = false;
@@ -854,7 +936,18 @@ async function startMission(){
 
 document.getElementById('retryBtn').addEventListener('click', startMission);
 
-if(note && learnData) startMission();
+// Difficulty selection — sets the question count, then kicks off quiz generation.
+document.querySelectorAll('.difficultyCard').forEach(card => {
+  card.addEventListener('click', () => {
+    selectedDifficulty = card.dataset.difficulty;
+    QUESTION_COUNT = parseInt(card.dataset.count, 10);
+    startMission();
+  });
+});
+
+if(note && learnData){
+  difficultyView.style.display = 'block';
+}
 </script>
 
 </body>
