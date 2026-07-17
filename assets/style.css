@@ -336,6 +336,28 @@ h2{
   opacity:0.7;
 }
 
+/* ---------- Language toggle (fixed, every page) ---------- */
+.langToggleBtn{
+  position:fixed;
+  top:16px;
+  right:16px;
+  z-index:60;
+  font-family:'Press Start 2P', monospace;
+  font-size:11px;
+  letter-spacing:1px;
+  padding:8px 12px;
+  border-radius:20px;
+  border:2px solid var(--panel-edge);
+  background:rgba(27,24,54,0.9);
+  color:var(--ink-dim);
+  cursor:pointer;
+  transition:border-color 0.15s, color 0.15s;
+}
+.langToggleBtn:hover{
+  border-color:var(--cyan);
+  color:var(--cyan);
+}
+
 @media (prefers-reduced-motion: reduce){
   .noMotion, #rocketIcon, .ufoRow img{ animation:none !important; }
 }
