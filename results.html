@@ -110,17 +110,17 @@
   <div class="cabinet wide">
 
     <div class="topBar">
-      <button class="btnGhost" onclick="window.location.href='index.html'">&larr; Start over</button>
-      <span class="agentTag">Agent: <span id="agentName">—</span></span>
+      <button class="btnGhost" onclick="window.location.href='index.html'" data-i18n="startOverBtn">&larr; Start over</button>
+      <span class="agentTag"><span data-i18n="agentLabel">Agent:</span> <span id="agentName">—</span></span>
     </div>
 
-    <h2>MISSION RESULTS</h2>
+    <h2 data-i18n="missionResults">MISSION RESULTS</h2>
     <p class="fileTag" id="fileTag" style="font-size:16px;color:var(--ink-dim);margin:0 0 22px;"></p>
 
     <!-- Shown if a student lands here without having played -->
     <div id="emptyView">
-      <p>No mission results yet — play a round first and your results will show up here.</p>
-      <button class="btnPrimary ready" onclick="window.location.href='index.html'">BACK TO TITLE</button>
+      <p data-i18n="noResultsMsg">No mission results yet — play a round first and your results will show up here.</p>
+      <button class="btnPrimary ready" onclick="window.location.href='index.html'" data-i18n="backToTitleBtn">BACK TO TITLE</button>
     </div>
 
     <div id="resultsBody">
@@ -128,38 +128,39 @@
         <div class="scoreSummary">
           <div>
             <div class="scoreBig" id="scoreBig">0</div>
-            <div class="scoreSub" id="scoreSub">0/0 correct</div>
+            <div class="scoreSub" id="scoreSub">0/0</div>
           </div>
           <div class="statusBadge" id="statusBadge">COMPLETE</div>
         </div>
       </div>
 
       <div class="card">
-        <p class="cardTitle">SUBTOPIC BREAKDOWN</p>
+        <p class="cardTitle" data-i18n="subtopicBreakdownTitle">SUBTOPIC BREAKDOWN</p>
         <div id="subtopicList"></div>
       </div>
 
       <div class="card">
-        <p class="cardTitle">SHARE WITH YOUR TEACHER</p>
+        <p class="cardTitle" data-i18n="shareTitle">SHARE WITH YOUR TEACHER</p>
         <div class="reportActions">
-          <button class="btnGhost" id="copyBtn">📋 Copy Report</button>
-          <button class="btnGhost" id="downloadBtn">⬇ Download .txt</button>
+          <button class="btnGhost" id="copyBtn" data-i18n="copyBtnText">📋 Copy Report</button>
+          <button class="btnGhost" id="downloadBtn" data-i18n="downloadBtnText">⬇ Download .txt</button>
         </div>
         <div class="copyFeedback" id="copyFeedback"></div>
       </div>
 
       <div class="bottomRow">
-        <button class="btnGhost" onclick="window.location.href='index.html'">Play Again</button>
+        <button class="btnGhost" onclick="window.location.href='index.html'" data-i18n="playAgainBtn">Play Again</button>
       </div>
     </div>
 
-    <p class="creditFooter">Made by Computer System Operation &middot; Sarawak Skills Sri Aman</p>
+    <p class="creditFooter" data-i18n="creditFooter">Made by Computer System Operation &middot; Sarawak Skills Sri Aman</p>
 
   </div>
 </div>
 
 <script src="assets/pixelart.js"></script>
 <script src="assets/starfield.js"></script>
+<script src="assets/i18n.js"></script>
 <script>
 const username = sessionStorage.getItem('si_username');
 const noteRaw = sessionStorage.getItem('si_note');
@@ -168,7 +169,7 @@ const quizResultsRaw = sessionStorage.getItem('si_quizResults');
 document.getElementById('agentName').textContent = username || '—';
 
 const note = noteRaw ? JSON.parse(noteRaw) : null;
-if(note) document.getElementById('fileTag').textContent = `Source: ${note.name}`;
+if(note) document.getElementById('fileTag').textContent = t('sourceLabel') + note.name;
 
 const emptyView = document.getElementById('emptyView');
 const resultsBody = document.getElementById('resultsBody');
@@ -182,9 +183,9 @@ if(!quizResultsRaw){
   // ---------- Score summary ----------
   document.getElementById('scoreBig').textContent = quizResults.score;
   document.getElementById('scoreSub').textContent =
-    `${quizResults.correctCount}/${quizResults.total} correct`;
+    t('correctOfTemplate', { correct: quizResults.correctCount, total: quizResults.total });
   const statusBadge = document.getElementById('statusBadge');
-  statusBadge.textContent = quizResults.completed ? 'COMPLETE' : 'FAILED';
+  statusBadge.textContent = quizResults.completed ? t('statusComplete') : t('statusFailed');
   if(!quizResults.completed) statusBadge.classList.add('failed');
 
   // ---------- Subtopic aggregation ----------
@@ -207,7 +208,11 @@ if(!quizResultsRaw){
   const subtopicStats = aggregateSubtopics(quizResults.log || []);
 
   const subtopicList = document.getElementById('subtopicList');
-  const LEVEL_LABEL = { strong: '✔ STRONG', weak: '⚠ WEAK', practice: '~ PRACTICE' };
+  function levelLabel(level){
+    if(level === 'strong') return t('strongLabel');
+    if(level === 'weak') return t('weakLabel');
+    return t('practiceLabel');
+  }
 
   subtopicStats.forEach(s => {
     const row = document.createElement('div');
@@ -217,12 +222,12 @@ if(!quizResultsRaw){
     header.className = 'subtopicHeader';
     header.innerHTML = `
       <span class="subtopicName">${s.subtopic}</span>
-      <span class="subtopicBadge ${s.level}">${LEVEL_LABEL[s.level]}</span>
+      <span class="subtopicBadge ${s.level}">${levelLabel(s.level)}</span>
     `;
 
     const ratioLine = document.createElement('div');
     ratioLine.className = 'subtopicRatio';
-    ratioLine.textContent = `${s.correct}/${s.total} correct`;
+    ratioLine.textContent = t('correctOfTemplate', { correct: s.correct, total: s.total });
     ratioLine.style.marginBottom = '6px';
 
     const bar = document.createElement('div');
@@ -239,25 +244,25 @@ if(!quizResultsRaw){
   });
 
   if(subtopicStats.length === 0){
-    subtopicList.innerHTML = '<p style="color:var(--ink-dim);font-size:16px;">No subtopic data available for this round.</p>';
+    subtopicList.innerHTML = `<p style="color:var(--ink-dim);font-size:16px;">${t('reportNoSubtopic')}</p>`;
   }
 
   // ---------- Plain-text report ----------
   function buildReportText(){
     const lines = [];
-    lines.push('STUDY INVADERS \u2014 MISSION REPORT');
-    lines.push(`Agent: ${username || 'Unknown'}`);
-    if(note) lines.push(`Source notes: ${note.name}`);
-    lines.push(`Date: ${new Date().toLocaleString()}`);
-    lines.push(`Score: ${quizResults.score} \u2014 ${quizResults.correctCount}/${quizResults.total} correct`);
-    lines.push(`Mission status: ${quizResults.completed ? 'COMPLETE' : 'FAILED'}`);
+    lines.push(t('reportHeader'));
+    lines.push(t('reportAgent') + (username || 'Unknown'));
+    if(note) lines.push(t('reportSource') + note.name);
+    lines.push(t('reportDate') + new Date().toLocaleString());
+    lines.push(t('reportScore') + `${quizResults.score} \u2014 ${quizResults.correctCount}/${quizResults.total}` + t('reportCorrectSuffix'));
+    lines.push(t('reportStatus') + (quizResults.completed ? t('statusComplete') : t('statusFailed')));
     lines.push('');
-    lines.push('SUBTOPIC BREAKDOWN');
+    lines.push(t('reportBreakdownHeader'));
     if(subtopicStats.length === 0){
-      lines.push('(no subtopic data)');
+      lines.push(t('reportNoSubtopic'));
     } else {
       subtopicStats.forEach(s => {
-        lines.push(`${LEVEL_LABEL[s.level]} \u2014 ${s.subtopic} (${s.correct}/${s.total} correct)`);
+        lines.push(`${levelLabel(s.level)} \u2014 ${s.subtopic} (${s.correct}/${s.total}${t('reportCorrectSuffix')})`);
       });
     }
     return lines.join('\n');
@@ -267,9 +272,9 @@ if(!quizResultsRaw){
     const feedback = document.getElementById('copyFeedback');
     try{
       await navigator.clipboard.writeText(buildReportText());
-      feedback.textContent = 'Copied! Paste it into an email or message to your teacher.';
+      feedback.textContent = t('copiedFeedback');
     } catch(err){
-      feedback.textContent = "Couldn't copy automatically — try the download button instead.";
+      feedback.textContent = t('copyFailedFeedback');
     }
   });
 
@@ -286,6 +291,8 @@ if(!quizResultsRaw){
     URL.revokeObjectURL(url);
   });
 }
+
+initI18n();
 </script>
 
 </body>
