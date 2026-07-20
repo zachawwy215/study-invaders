@@ -339,23 +339,36 @@ h2{
 /* ---------- Language toggle (fixed, every page) ---------- */
 .langToggleBtn{
   position:fixed;
-  top:16px;
-  right:16px;
+  top:14px;
+  right:14px;
   z-index:60;
   font-family:'Press Start 2P', monospace;
-  font-size:11px;
+  font-size:13px;
   letter-spacing:1px;
-  padding:8px 12px;
-  border-radius:20px;
-  border:2px solid var(--panel-edge);
-  background:rgba(27,24,54,0.9);
-  color:var(--ink-dim);
+  padding:11px 16px;
+  border-radius:24px;
+  border:2px solid var(--cyan);
+  background:rgba(27,24,54,0.95);
+  color:var(--cyan);
   cursor:pointer;
-  transition:border-color 0.15s, color 0.15s;
+  box-shadow:0 0 14px rgba(76,224,210,0.45);
+  transition:border-color 0.15s, color 0.15s, transform 0.1s, box-shadow 0.2s;
+  animation:langBtnAttention 1.6s ease-in-out 3;
 }
 .langToggleBtn:hover{
-  border-color:var(--cyan);
-  color:var(--cyan);
+  transform:translateY(-2px);
+  box-shadow:0 0 20px rgba(76,224,210,0.7);
+}
+.langToggleBtn:active{ transform:translateY(0); }
+@keyframes langBtnAttention{
+  0%,100%{ box-shadow:0 0 14px rgba(76,224,210,0.45); transform:scale(1); }
+  50%{ box-shadow:0 0 26px rgba(76,224,210,0.9); transform:scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce){
+  .langToggleBtn{ animation:none; }
+}
+@media (max-width: 480px){
+  .stage{ padding-top:68px; }
 }
 
 @media (prefers-reduced-motion: reduce){
