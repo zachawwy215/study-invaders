@@ -38,7 +38,7 @@ const TRANSLATIONS = {
     loading7: "Teaching the UFOs their lines...",
     loading8: "Double-checking the star map...",
     transmissionFailed: "Transmission failed: ",
-    lowBalanceHint: " — If this mentions a low balance, try signing out of Puter and signing back in with a different account.",
+    lowBalanceHint: " — If this mentions a low balance, try log in to your Puter, delete your account and make a fresh account. You can use the same email for this.",
     retryBtn: "Try again",
     creditFooter: "Made by Computer System Operation · Sarawak Skills Sri Aman",
 
@@ -140,7 +140,7 @@ const TRANSLATIONS = {
     uploadPrompt: "Ketik untuk muat naik nota guru anda",
     uploadHint: "Fail PDF, imej, atau teks",
     puterNotice1: "Satu langkah tambahan: apabila anda tekan Main, tetingkap akan muncul meminta anda log masuk dengan akaun Puter percuma. Itulah yang menggerakkan bahagian AI — hanya mengambil masa beberapa saat, dan anda hanya perlu buat sekali sahaja pada peranti ini.",
-    puterNotice2: "Jika Puter menyatakan baki akaun anda rendah, log keluar dan log masuk semula dengan e-mel lain untuk mendapatkan akaun baharu.",
+    puterNotice2: "Jika Puter pernah memberitahu bahawa akaun anda kekurangan baki, pergi sahaja ke Puter, padam akaun Puter anda dan cipta akaun baharu. Anda boleh menggunakan e-mel yang sama untuk ini.",
     playBtn: "MAIN",
     missingCallsign: "nama samaran anda",
     missingNotes: "nota anda",
@@ -156,7 +156,7 @@ const TRANSLATIONS = {
     loading7: "Mengajar UFO dialog mereka...",
     loading8: "Menyemak semula peta bintang...",
     transmissionFailed: "Transmisi gagal: ",
-    lowBalanceHint: " — Jika ini menyebut baki rendah, cuba log keluar dari Puter dan log masuk semula dengan akaun lain.",
+    lowBalanceHint: " — Jika ini menyatakan baki yang rendah, cuba log masuk ke Puter anda, padam akaun anda dan buat akaun baharu. Anda boleh menggunakan e-mel yang sama untuk ini.",
     retryBtn: "Cuba lagi",
     creditFooter: "Dibuat oleh Computer System Operation · Sarawak Skills Sri Aman",
 
