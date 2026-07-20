@@ -22,7 +22,7 @@ const TRANSLATIONS = {
     uploadPrompt: "Tap to upload your teacher's notes",
     uploadHint: "PDF, image, or text file",
     puterNotice1: "One extra step: when you hit Play, a window will pop up asking you to sign in with a free Puter account. That's what powers the AI part — it only takes a few seconds, and you only do it once on this device.",
-    puterNotice2: "If Puter ever says your account is low on balance, just sign out and sign back in with a different email to get a fresh account.",
+    puterNotice2: "f Puter ever says your account is low on balance, just go to Puter, delete your Puter account and create a new account. You can use the same email for this.",
     playBtn: "PLAY",
     missingCallsign: "your callsign",
     missingNotes: "your notes",
