@@ -42,6 +42,10 @@ function withTimeout(promise, ms, label){
   ]);
 }
 
+function sleep(ms){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /* ---------- Puter.js path (primary) ---------- */
 
 function extractResponseText(response){
@@ -82,18 +86,13 @@ async function askAIViaPuter(prompt, note, model){
   return parseJsonResponse(rawText);
 }
 
-// Retries a fetch once or twice on a 429 (rate limit) with a short delay —
-// the free model's shared pool can get briefly congested under load.
-async function fetchWithRetry(url, options, maxRetries = 2){
-  for(let attempt = 0; attempt <= maxRetries; attempt++){
-    const response = await fetch(url, options);
-    if(response.status !== 429 || attempt === maxRetries) return response;
-    await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)));
-  }
-}
-
 /* ---------- OpenRouter path (fallback) ---------- */
 
+// Tries each model in OPENROUTER_MODELS in order, moving to the next one
+// on a rate-limit (429) or any other error. Doing this ourselves instead of
+// relying on OpenRouter's built-in `models` fallback array, since in
+// practice it kept returning only the first model's error instead of
+// actually trying the next one.
 async function askAIViaOpenRouter(prompt, note){
   const contentParts = [{ type: 'text', text: prompt }];
 
@@ -114,37 +113,55 @@ async function askAIViaOpenRouter(prompt, note){
     }
   }
 
-  const requestBody = {
-    models: OPENROUTER_MODELS,
-    messages: [{ role: 'user', content: contentParts }],
-    response_format: { type: 'json_object' }
-  };
+  let lastError;
 
-  // For PDFs, explicitly request the FREE text-extraction engine.
-  // Without this, OpenRouter can default to a paid OCR engine, which
-  // fails/errors on accounts with no funded credits.
-  if(!note.isText && note.mimeType === 'application/pdf'){
-    requestBody.plugins = [{ id: 'file-parser', pdf: { engine: 'pdf-text' } }];
+  for(const model of OPENROUTER_MODELS){
+    const requestBody = {
+      model,
+      messages: [{ role: 'user', content: contentParts }],
+      response_format: { type: 'json_object' }
+    };
+
+    // For PDFs, explicitly request the FREE text-extraction engine.
+    // Without this, OpenRouter can default to a paid OCR engine, which
+    // fails/errors on accounts with no funded credits.
+    if(!note.isText && note.mimeType === 'application/pdf'){
+      requestBody.plugins = [{ id: 'file-parser', pdf: { engine: 'pdf-text' } }];
+    }
+
+    try {
+      const response = await fetch(WORKER_PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      if(response.status === 429){
+        lastError = new Error(`${model} is rate-limited`);
+        await sleep(1500); // brief pause before trying the next model
+        continue;
+      }
+
+      if(!response.ok){
+        const errText = await response.text();
+        lastError = new Error(`AI proxy error (${response.status}) on ${model}: ${errText}`);
+        continue;
+      }
+
+      const data = await response.json();
+      const rawText = data?.choices?.[0]?.message?.content;
+      if(!rawText){
+        lastError = new Error(`No response text from ${model}`);
+        continue;
+      }
+
+      return parseJsonResponse(rawText);
+    } catch (err){
+      lastError = err;
+    }
   }
 
-  const response = await fetchWithRetry(WORKER_PROXY_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(requestBody)
-  });
-
-  if(!response.ok){
-    const errText = await response.text();
-    throw new Error(`AI proxy error (${response.status}): ${errText}`);
-  }
-
-  const data = await response.json();
-  const rawText = data?.choices?.[0]?.message?.content;
-  if(!rawText) throw new Error('No response text from AI proxy');
-
-  return parseJsonResponse(rawText);
+  throw lastError || new Error('All AI models failed');
 }
 
 /* ---------- Public entry point ---------- */
