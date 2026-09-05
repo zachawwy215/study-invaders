@@ -13,7 +13,13 @@
    ============================================ */
 
 const WORKER_PROXY_URL = "https://study-invaders-proxy.nazminawen21.workers.dev/";
-const OPENROUTER_MODEL = "google/gemma-4-31b-it:free"; // free, multimodal (text + image)
+// Listed in priority order — if the first is rate-limited/down, OpenRouter
+// automatically tries the next one for us.
+const OPENROUTER_MODELS = [
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "google/gemma-3-12b-it:free"
+];
 const PUTER_TIMEOUT_MS = 8000; // give Puter this long before giving up and falling back
 
 // Strips stray markdown code fences the model sometimes adds, then parses.
@@ -109,7 +115,7 @@ async function askAIViaOpenRouter(prompt, note){
   }
 
   const requestBody = {
-    model: OPENROUTER_MODEL,
+    models: OPENROUTER_MODELS,
     messages: [{ role: 'user', content: contentParts }],
     response_format: { type: 'json_object' }
   };
