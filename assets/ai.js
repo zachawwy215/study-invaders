@@ -17,7 +17,7 @@ const WORKER_PROXY_URL = "https://study-invaders-proxy.nazminawen21.workers.dev/
 // automatically tries the next one for us.
 const OPENROUTER_MODELS = [
   "google/gemma-4-31b-it:free",
-  "qwen/qwen2.5-vl-7b-instruct:free",
+  "thinkingmachines/inkling:free",
   "google/gemma-3-12b-it:free"
 ];
 const PUTER_TIMEOUT_MS = 8000; // give Puter this long before giving up and falling back
