@@ -1,19 +1,19 @@
 /* ============================================
    AI helpers: tries Puter.js first (free, no
    API key needed for the visitor), and falls
-   back to a direct Gemini API call if Puter
-   fails or times out.
+   back to OpenRouter (your own free API key)
+   if Puter fails or times out.
 
-   Requires BOTH of these still in your HTML:
+   Requires this still in your HTML:
    <script src="https://js.puter.com/v2/"></script>
 
-   ⚠️ Put your own free Gemini API key below —
+   ⚠️ Put your own free OpenRouter API key below —
    used only as the fallback path.
-   Get one at: https://aistudio.google.com/apikey
+   Get one at: https://openrouter.ai/keys
    ============================================ */
 
-const GEMINI_API_KEY = "AQ.Ab8RN6IhASY741PT4HNcZSOn6we2jCQml3VPil0oaUx8uLP5Qw";
-const GEMINI_MODEL = "gemini-2.5-flash"; // free-tier eligible, stable as of Sept 2026
+const OPENROUTER_API_KEY = "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";
+const OPENROUTER_MODEL = "google/gemma-4-31b-it:free"; // free, multimodal (text + image)
 const PUTER_TIMEOUT_MS = 8000; // give Puter this long before giving up and falling back
 
 // Strips stray markdown code fences the model sometimes adds, then parses.
@@ -76,42 +76,49 @@ async function askAIViaPuter(prompt, note, model){
   return parseJsonResponse(rawText);
 }
 
-/* ---------- Direct Gemini API path (fallback) ---------- */
+/* ---------- OpenRouter path (fallback) ---------- */
 
-async function askAIViaGemini(prompt, note){
-  const parts = [];
+async function askAIViaOpenRouter(prompt, note){
+  const contentParts = [{ type: 'text', text: prompt }];
 
   if(note.isText){
-    parts.push({ text: prompt + "\n\nNOTES CONTENT:\n" + note.content });
+    contentParts[0].text += "\n\nNOTES CONTENT:\n" + note.content;
   } else {
-    // note.content is already base64 — Gemini accepts it inline directly.
-    parts.push({ text: prompt });
-    parts.push({ inline_data: { mime_type: note.mimeType, data: note.content } });
+    const dataUrl = `data:${note.mimeType};base64,${note.content}`;
+    if(note.mimeType === 'application/pdf'){
+      contentParts.push({
+        type: 'file',
+        file: { filename: note.name, file_data: dataUrl }
+      });
+    } else {
+      contentParts.push({
+        type: 'image_url',
+        image_url: { url: dataUrl }
+      });
+    }
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': GEMINI_API_KEY
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts }],
-        generationConfig: { responseMimeType: 'application/json' }
-      })
-    }
-  );
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages: [{ role: 'user', content: contentParts }],
+      response_format: { type: 'json_object' }
+    })
+  });
 
   if(!response.ok){
     const errText = await response.text();
-    throw new Error(`Gemini API error (${response.status}): ${errText}`);
+    throw new Error(`OpenRouter API error (${response.status}): ${errText}`);
   }
 
   const data = await response.json();
-  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if(!rawText) throw new Error('No response text from Gemini API');
+  const rawText = data?.choices?.[0]?.message?.content;
+  if(!rawText) throw new Error('No response text from OpenRouter');
 
   return parseJsonResponse(rawText);
 }
@@ -123,7 +130,7 @@ async function askAI(prompt, note, model = 'google/gemini-3.5-flash'){
   try {
     return await withTimeout(askAIViaPuter(prompt, note, model), PUTER_TIMEOUT_MS, 'Puter');
   } catch (err){
-    console.warn('Puter AI unavailable, falling back to direct Gemini API:', err);
-    return await askAIViaGemini(prompt, note);
+    console.warn('Puter AI unavailable, falling back to OpenRouter:', err);
+    return await askAIViaOpenRouter(prompt, note);
   }
 }
