@@ -76,6 +76,16 @@ async function askAIViaPuter(prompt, note, model){
   return parseJsonResponse(rawText);
 }
 
+// Retries a fetch once or twice on a 429 (rate limit) with a short delay —
+// the free model's shared pool can get briefly congested under load.
+async function fetchWithRetry(url, options, maxRetries = 2){
+  for(let attempt = 0; attempt <= maxRetries; attempt++){
+    const response = await fetch(url, options);
+    if(response.status !== 429 || attempt === maxRetries) return response;
+    await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)));
+  }
+}
+
 /* ---------- OpenRouter path (fallback) ---------- */
 
 async function askAIViaOpenRouter(prompt, note){
@@ -111,7 +121,7 @@ async function askAIViaOpenRouter(prompt, note){
     requestBody.plugins = [{ id: 'file-parser', pdf: { engine: 'pdf-text' } }];
   }
 
-  const response = await fetch(WORKER_PROXY_URL, {
+  const response = await fetchWithRetry(WORKER_PROXY_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
