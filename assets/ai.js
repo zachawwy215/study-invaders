@@ -98,17 +98,26 @@ async function askAIViaOpenRouter(prompt, note){
     }
   }
 
+  const requestBody = {
+    model: OPENROUTER_MODEL,
+    messages: [{ role: 'user', content: contentParts }],
+    response_format: { type: 'json_object' }
+  };
+
+  // For PDFs, explicitly request the FREE text-extraction engine.
+  // Without this, OpenRouter can default to a paid OCR engine, which
+  // fails/errors on accounts with no funded credits.
+  if(!note.isText && note.mimeType === 'application/pdf'){
+    requestBody.plugins = [{ id: 'file-parser', pdf: { engine: 'pdf-text' } }];
+  }
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      model: OPENROUTER_MODEL,
-      messages: [{ role: 'user', content: contentParts }],
-      response_format: { type: 'json_object' }
-    })
+    body: JSON.stringify(requestBody)
   });
 
   if(!response.ok){
