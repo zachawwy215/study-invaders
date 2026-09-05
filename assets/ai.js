@@ -1,18 +1,18 @@
 /* ============================================
    AI helpers: tries Puter.js first (free, no
    API key needed for the visitor), and falls
-   back to OpenRouter (your own free API key)
-   if Puter fails or times out.
+   back to a Cloudflare Worker proxy (which holds
+   the real OpenRouter key server-side) if Puter
+   fails or times out.
 
    Requires this still in your HTML:
    <script src="https://js.puter.com/v2/"></script>
 
-   ⚠️ Put your own free OpenRouter API key below —
-   used only as the fallback path.
-   Get one at: https://openrouter.ai/keys
+   No API key goes in this file — it lives safely
+   in your Cloudflare Worker's secret settings.
    ============================================ */
 
-const OPENROUTER_API_KEY = "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";
+const WORKER_PROXY_URL = "https://study-invaders-proxy.nazminawen21.workers.dev/";
 const OPENROUTER_MODEL = "google/gemma-4-31b-it:free"; // free, multimodal (text + image)
 const PUTER_TIMEOUT_MS = 8000; // give Puter this long before giving up and falling back
 
@@ -111,10 +111,9 @@ async function askAIViaOpenRouter(prompt, note){
     requestBody.plugins = [{ id: 'file-parser', pdf: { engine: 'pdf-text' } }];
   }
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const response = await fetch(WORKER_PROXY_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(requestBody)
@@ -122,12 +121,12 @@ async function askAIViaOpenRouter(prompt, note){
 
   if(!response.ok){
     const errText = await response.text();
-    throw new Error(`OpenRouter API error (${response.status}): ${errText}`);
+    throw new Error(`AI proxy error (${response.status}): ${errText}`);
   }
 
   const data = await response.json();
   const rawText = data?.choices?.[0]?.message?.content;
-  if(!rawText) throw new Error('No response text from OpenRouter');
+  if(!rawText) throw new Error('No response text from AI proxy');
 
   return parseJsonResponse(rawText);
 }
@@ -139,7 +138,7 @@ async function askAI(prompt, note, model = 'google/gemini-3.5-flash'){
   try {
     return await withTimeout(askAIViaPuter(prompt, note, model), PUTER_TIMEOUT_MS, 'Puter');
   } catch (err){
-    console.warn('Puter AI unavailable, falling back to OpenRouter:', err);
+    console.warn('Puter AI unavailable, falling back to proxy:', err);
     return await askAIViaOpenRouter(prompt, note);
   }
 }
