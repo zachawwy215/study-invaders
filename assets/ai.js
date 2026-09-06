@@ -20,7 +20,7 @@ const OPENROUTER_MODELS = [
   "thinkingmachines/inkling:free",
   "nvidia/nemotron-3.5-lightning:free"
 ];
-const PUTER_TIMEOUT_MS = 8000; // give Puter this long before giving up and falling back
+const PUTER_TIMEOUT_MS = 3000; // give Puter this long before giving up and falling back
 
 // Strips stray markdown code fences the model sometimes adds, then parses.
 function parseJsonResponse(raw){
@@ -59,14 +59,14 @@ function extractResponseText(response){
   return String(response);
 }
 
-async function uploadNoteAndGetUrl(note){
-  const byteChars = atob(note.content);
+async function uploadBase64AndGetUrl(base64, filename, mimeType){
+  const byteChars = atob(base64);
   const byteNumbers = new Array(byteChars.length);
   for(let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
   const byteArray = new Uint8Array(byteNumbers);
-  const blob = new Blob([byteArray], { type: note.mimeType });
+  const blob = new Blob([byteArray], { type: mimeType });
 
-  const uploaded = await puter.fs.write(note.name, blob);
+  const uploaded = await puter.fs.write(filename, blob);
   return await puter.fs.getReadURL(uploaded.path);
 }
 
@@ -78,8 +78,17 @@ async function askAIViaPuter(prompt, note, model){
   if(note.isText){
     const fullPrompt = prompt + "\n\nNOTES CONTENT:\n" + note.content;
     response = await puter.ai.chat(fullPrompt, { model });
+  } else if(note.isPdf){
+    // Puter's chat() accepts an array of image URLs, so upload every
+    // rendered page (in parallel, to keep this fast) and pass them all.
+    const fileUrls = await Promise.all(
+      note.pageImages.map((img, i) =>
+        uploadBase64AndGetUrl(img, `${note.name}-p${i + 1}.jpg`, 'image/jpeg')
+      )
+    );
+    response = await puter.ai.chat(prompt, fileUrls, { model });
   } else {
-    const fileUrl = await uploadNoteAndGetUrl(note);
+    const fileUrl = await uploadBase64AndGetUrl(note.content, note.name, note.mimeType);
     response = await puter.ai.chat(prompt, fileUrl, { model });
   }
   const rawText = extractResponseText(response);
@@ -98,19 +107,25 @@ async function askAIViaOpenRouter(prompt, note){
 
   if(note.isText){
     contentParts[0].text += "\n\nNOTES CONTENT:\n" + note.content;
-  } else {
-    const dataUrl = `data:${note.mimeType};base64,${note.content}`;
-    if(note.mimeType === 'application/pdf'){
-      contentParts.push({
-        type: 'file',
-        file: { filename: note.name, file_data: dataUrl }
-      });
-    } else {
+  } else if(note.isPdf){
+    // Send each rendered page as an image directly to the vision model,
+    // instead of relying on server-side PDF text-extraction (which proved
+    // unreliable on some real documents even when they had genuine text).
+    if(note.pagesIncluded < note.pageCount){
+      contentParts[0].text += `\n\n(Note: this document has ${note.pageCount} pages; only the first ${note.pagesIncluded} are attached below.)`;
+    }
+    for(const pageBase64 of note.pageImages){
       contentParts.push({
         type: 'image_url',
-        image_url: { url: dataUrl }
+        image_url: { url: `data:image/jpeg;base64,${pageBase64}` }
       });
     }
+  } else {
+    const dataUrl = `data:${note.mimeType};base64,${note.content}`;
+    contentParts.push({
+      type: 'image_url',
+      image_url: { url: dataUrl }
+    });
   }
 
   let lastError;
@@ -120,13 +135,6 @@ async function askAIViaOpenRouter(prompt, note){
       model,
       messages: [{ role: 'user', content: contentParts }]
     };
-
-    // For PDFs, explicitly request the FREE text-extraction engine.
-    // Without this, OpenRouter can default to a paid OCR engine, which
-    // fails/errors on accounts with no funded credits.
-    if(!note.isText && note.mimeType === 'application/pdf'){
-      requestBody.plugins = [{ id: 'file-parser', pdf: { engine: 'pdf-text' } }];
-    }
 
     try {
       const response = await fetch(WORKER_PROXY_URL, {
