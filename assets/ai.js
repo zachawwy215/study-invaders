@@ -118,8 +118,7 @@ async function askAIViaOpenRouter(prompt, note){
   for(const model of OPENROUTER_MODELS){
     const requestBody = {
       model,
-      messages: [{ role: 'user', content: contentParts }],
-      response_format: { type: 'json_object' }
+      messages: [{ role: 'user', content: contentParts }]
     };
 
     // For PDFs, explicitly request the FREE text-extraction engine.
