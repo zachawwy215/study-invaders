@@ -18,7 +18,7 @@ const WORKER_PROXY_URL = "https://study-invaders-proxy.nazminawen21.workers.dev/
 const OPENROUTER_MODELS = [
   "google/gemma-4-31b-it:free",
   "thinkingmachines/inkling:free",
-  "google/gemma-3-12b-it:free"
+  "nvidia/nemotron-3.5-lightning:free"
 ];
 const PUTER_TIMEOUT_MS = 8000; // give Puter this long before giving up and falling back
 
