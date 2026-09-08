@@ -70,29 +70,67 @@ async function uploadBase64AndGetUrl(base64, filename, mimeType){
   return await puter.fs.getReadURL(uploaded.path);
 }
 
-async function askAIViaPuter(prompt, note, model){
+// Ported directly from Learnify-CS's working Puter integration.
+let _authInFlight = null;
+async function ensurePuterAuth(){
+  try {
+    if(puter.auth.isSignedIn()) return true;
+  } catch(e){ /* fall through to sign-in */ }
+
+  if(_authInFlight){
+    try { return await _authInFlight; } catch(e){ return false; }
+  }
+
+  _authInFlight = (async () => {
+    try {
+      await puter.auth.signIn();
+      return true;
+    } catch(e){
+      console.error('Puter sign-in failed or was cancelled:', e);
+      return false;
+    } finally {
+      _authInFlight = null;
+    }
+  })();
+
+  return await _authInFlight;
+}
+
+// Same fallback model list as Learnify-CS's confirmed-working chatWithFallback.
+const PUTER_MODEL_FALLBACKS = ['google/gemini-3.5-flash', 'google/gemini-3.1-flash-lite', 'gpt-5.4-nano'];
+
+async function askAIViaPuter(prompt, note){
   if(typeof puter === 'undefined'){
     throw new Error('Puter.js script did not load');
   }
-  let response;
-  if(note.isText){
-    const fullPrompt = prompt + "\n\nNOTES CONTENT:\n" + note.content;
-    response = await puter.ai.chat(fullPrompt, { model });
-  } else if(note.isPdf){
-    // Puter's chat() accepts an array of image URLs, so upload every
-    // rendered page (in parallel, to keep this fast) and pass them all.
-    const fileUrls = await Promise.all(
-      note.pageImages.map((img, i) =>
-        uploadBase64AndGetUrl(img, `${note.name}-p${i + 1}.jpg`, 'image/jpeg')
-      )
-    );
-    response = await puter.ai.chat(prompt, fileUrls, { model });
-  } else {
-    const fileUrl = await uploadBase64AndGetUrl(note.content, note.name, note.mimeType);
-    response = await puter.ai.chat(prompt, fileUrl, { model });
+  const authed = await ensurePuterAuth();
+  if(!authed) throw new Error('Puter sign-in did not complete');
+
+  let lastErr;
+  for(const model of PUTER_MODEL_FALLBACKS){
+    try {
+      let response;
+      if(note.isText){
+        const fullPrompt = prompt + "\n\nNOTES CONTENT:\n" + note.content;
+        response = await puter.ai.chat(fullPrompt, { model });
+      } else if(note.isPdf){
+        const fileUrls = await Promise.all(
+          note.pageImages.map((img, i) =>
+            uploadBase64AndGetUrl(img, `${note.name}-p${i + 1}.jpg`, 'image/jpeg')
+          )
+        );
+        response = await puter.ai.chat(prompt, fileUrls, { model });
+      } else {
+        const fileUrl = await uploadBase64AndGetUrl(note.content, note.name, note.mimeType);
+        response = await puter.ai.chat(prompt, fileUrl, { model });
+      }
+      return parseJsonResponse(extractResponseText(response));
+    } catch(err){
+      console.warn(`Puter model "${model}" failed, trying next fallback...`, err);
+      lastErr = err;
+    }
   }
-  const rawText = extractResponseText(response);
-  return parseJsonResponse(rawText);
+  throw lastErr;
 }
 
 /* ---------- OpenRouter path (fallback) ---------- */
@@ -174,9 +212,9 @@ async function askAIViaOpenRouter(prompt, note){
 /* ---------- Public entry point ---------- */
 
 // Same signature as before, so index.html / learn.html don't need to change.
-async function askAI(prompt, note, model = 'google/gemini-3.5-flash'){
+async function askAI(prompt, note){
   try {
-    return await withTimeout(askAIViaPuter(prompt, note, model), PUTER_TIMEOUT_MS, 'Puter');
+    return await withTimeout(askAIViaPuter(prompt, note), PUTER_TIMEOUT_MS, 'Puter');
   } catch (err){
     console.warn('Puter AI unavailable, falling back to proxy:', err);
     return await askAIViaOpenRouter(prompt, note);
