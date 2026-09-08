@@ -16,9 +16,9 @@ const WORKER_PROXY_URL = "https://study-invaders-proxy.nazminawen21.workers.dev/
 // Listed in priority order — if the first is rate-limited/down, OpenRouter
 // automatically tries the next one for us.
 const OPENROUTER_MODELS = [
-  "google/gemma-4-31b-it:free",
   "thinkingmachines/inkling:free",
-  "nvidia/nemotron-3.5-lightning:free"
+  "thinkingmachines/inkling-small:free",
+  "google/gemma-4-31b-it:free"
 ];
 const PUTER_TIMEOUT_MS = 3000; // give Puter this long before giving up and falling back
 
