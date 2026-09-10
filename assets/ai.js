@@ -2,8 +2,8 @@
    AI helpers: tries Puter.js first (free, no
    API key needed for the visitor), and falls
    back to a Cloudflare Worker proxy (which holds
-   the real OpenRouter key server-side) if Puter
-   fails or times out.
+   the real OpenRouter key server-side) only if
+   Puter's actual AI call fails or hangs.
 
    Requires this still in your HTML:
    <script src="https://js.puter.com/v2/"></script>
@@ -20,7 +20,9 @@ const OPENROUTER_MODELS = [
   "thinkingmachines/inkling-small:free",
   "google/gemma-4-31b-it:free"
 ];
-const PUTER_TIMEOUT_MS = 3000; // give Puter this long before giving up and falling back
+// Only wraps the actual AI request after sign-in is done — never the
+// sign-in step itself, since that depends on how fast a real person types.
+const PUTER_CALL_TIMEOUT_MS = 15000;
 
 // Strips stray markdown code fences the model sometimes adds, then parses.
 function parseJsonResponse(raw){
@@ -34,7 +36,7 @@ function parseJsonResponse(raw){
 }
 
 // Rejects if `promise` doesn't settle within `ms` — needed because a broken
-// Puter sign-in can hang indefinitely instead of throwing.
+// Puter socket can hang indefinitely instead of throwing.
 function withTimeout(promise, ms, label){
   return Promise.race([
     promise,
@@ -70,12 +72,15 @@ async function uploadBase64AndGetUrl(base64, filename, mimeType){
   return await puter.fs.getReadURL(uploaded.path);
 }
 
-// Ported directly from Learnify-CS's working Puter integration.
+// Matches Learnify-CS's actual working pattern: check with a live call
+// (getUser()) rather than a local/cached flag (isSignedIn()), so we don't
+// act on stale state.
 let _authInFlight = null;
 async function ensurePuterAuth(){
   try {
-    if(puter.auth.isSignedIn()) return true;
-  } catch(e){ /* fall through to sign-in */ }
+    const user = await puter.auth.getUser();
+    if(user && user.username) return true;
+  } catch(e){ /* not signed in, or session expired — fall through */ }
 
   if(_authInFlight){
     try { return await _authInFlight; } catch(e){ return false; }
@@ -83,7 +88,7 @@ async function ensurePuterAuth(){
 
   _authInFlight = (async () => {
     try {
-      await puter.auth.signIn();
+      await puter.auth.signIn(); // no timeout here — let the person take their time
       return true;
     } catch(e){
       console.error('Puter sign-in failed or was cancelled:', e);
@@ -109,21 +114,28 @@ async function askAIViaPuter(prompt, note){
   let lastErr;
   for(const model of PUTER_MODEL_FALLBACKS){
     try {
-      let response;
-      if(note.isText){
-        const fullPrompt = prompt + "\n\nNOTES CONTENT:\n" + note.content;
-        response = await puter.ai.chat(fullPrompt, { model });
-      } else if(note.isPdf){
-        const fileUrls = await Promise.all(
-          note.pageImages.map((img, i) =>
-            uploadBase64AndGetUrl(img, `${note.name}-p${i + 1}.jpg`, 'image/jpeg')
-          )
-        );
-        response = await puter.ai.chat(prompt, fileUrls, { model });
-      } else {
-        const fileUrl = await uploadBase64AndGetUrl(note.content, note.name, note.mimeType);
-        response = await puter.ai.chat(prompt, fileUrl, { model });
-      }
+      const callPromise = (async () => {
+        let response;
+        if(note.isText){
+          const fullPrompt = prompt + "\n\nNOTES CONTENT:\n" + note.content;
+          response = await puter.ai.chat(fullPrompt, { model });
+        } else if(note.isPdf){
+          const fileUrls = await Promise.all(
+            note.pageImages.map((img, i) =>
+              uploadBase64AndGetUrl(img, `${note.name}-p${i + 1}.jpg`, 'image/jpeg')
+            )
+          );
+          response = await puter.ai.chat(prompt, fileUrls, { model });
+        } else {
+          const fileUrl = await uploadBase64AndGetUrl(note.content, note.name, note.mimeType);
+          response = await puter.ai.chat(prompt, fileUrl, { model });
+        }
+        return response;
+      })();
+
+      // Only the network call gets time-boxed — this is what was reportedly
+      // hanging (the socket issue), not the sign-in the person just did.
+      const response = await withTimeout(callPromise, PUTER_CALL_TIMEOUT_MS, `Puter (${model})`);
       return parseJsonResponse(extractResponseText(response));
     } catch(err){
       console.warn(`Puter model "${model}" failed, trying next fallback...`, err);
@@ -135,20 +147,12 @@ async function askAIViaPuter(prompt, note){
 
 /* ---------- OpenRouter path (fallback) ---------- */
 
-// Tries each model in OPENROUTER_MODELS in order, moving to the next one
-// on a rate-limit (429) or any other error. Doing this ourselves instead of
-// relying on OpenRouter's built-in `models` fallback array, since in
-// practice it kept returning only the first model's error instead of
-// actually trying the next one.
 async function askAIViaOpenRouter(prompt, note){
   const contentParts = [{ type: 'text', text: prompt }];
 
   if(note.isText){
     contentParts[0].text += "\n\nNOTES CONTENT:\n" + note.content;
   } else if(note.isPdf){
-    // Send each rendered page as an image directly to the vision model,
-    // instead of relying on server-side PDF text-extraction (which proved
-    // unreliable on some real documents even when they had genuine text).
     if(note.pagesIncluded < note.pageCount){
       contentParts[0].text += `\n\n(Note: this document has ${note.pageCount} pages; only the first ${note.pagesIncluded} are attached below.)`;
     }
@@ -183,7 +187,7 @@ async function askAIViaOpenRouter(prompt, note){
 
       if(response.status === 429){
         lastError = new Error(`${model} is rate-limited`);
-        await sleep(1500); // brief pause before trying the next model
+        await sleep(1500);
         continue;
       }
 
@@ -214,7 +218,7 @@ async function askAIViaOpenRouter(prompt, note){
 // Same signature as before, so index.html / learn.html don't need to change.
 async function askAI(prompt, note){
   try {
-    return await withTimeout(askAIViaPuter(prompt, note), PUTER_TIMEOUT_MS, 'Puter');
+    return await askAIViaPuter(prompt, note);
   } catch (err){
     console.warn('Puter AI unavailable, falling back to proxy:', err);
     return await askAIViaOpenRouter(prompt, note);
